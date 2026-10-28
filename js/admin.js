@@ -100,7 +100,7 @@ const vistas = {
           ${waBoton(id, `Hola ${c.nombre}!`, 'WhatsApp')}
           <button class="btn ghost" data-act="enviarAcceso" data-id="${id}">Enviar acceso</button>
           <button class="btn ghost" data-act="editarCliente" data-id="${id}">Editar</button>
-          <button class="btn ghost" data-act="resetPassword" data-id="${id}">Cambiar contraseña</button>
+          <button class="btn ghost" data-act="resetPassword" data-id="${id}">Enviar cambio de contraseña</button>
           <button class="btn ghost" data-act="toggleAcceso" data-id="${id}">${c.bloqueado ? 'Habilitar acceso' : 'Deshabilitar acceso'}</button>
           <button class="btn danger" data-act="eliminarCliente" data-id="${id}">Eliminar</button>
         </div></div>
@@ -209,11 +209,8 @@ const vistas = {
             <div class="full"><button class="btn" type="submit">Guardar cambios</button></div>
           </form></div>
         <div class="card"><h2>Copia de seguridad</h2>
-          <p class="muted">Descargá periódicamente una copia de todos los datos (clientes, pólizas, pagos, archivos). Con ella podés restaurar todo o pasar los datos a otra computadora.</p>
-          <div class="actions">
-            <button class="btn" data-act="exportar">Descargar copia</button>
-            <label class="btn ghost">Restaurar copia<input type="file" id="importar" accept=".json" hidden></label>
-          </div>
+          <p class="muted">Los datos se guardan en la nube (Supabase). Igual podés descargar cuando quieras una copia de clientes, pólizas, pagos, presupuestos y siniestros.</p>
+          <div class="actions"><button class="btn" data-act="exportar">Descargar copia</button></div>
           <h2 style="margin-top:24px">Datos del sitio</h2>
           <p class="muted">El nombre, matrícula, teléfono, WhatsApp y compañías se configuran en el archivo <code>js/config.js</code>.</p>
         </div>
@@ -222,23 +219,14 @@ const vistas = {
       e.preventDefault();
       const d = Object.fromEntries(new FormData(e.target));
       try {
-        if (!await Auth.checkPassword(yo, d.actual)) throw new Error('La contraseña actual no es correcta');
-        const email = d.email.trim().toLowerCase();
-        if (DB._d.users.some(u => u.email === email && u.id !== yo.id)) throw new Error('Ese email ya está en uso');
-        DB.update('users', yo.id, { nombre: d.nombre, email });
-        if (d.nueva) await Auth.setPassword(yo.id, d.nueva);
-        $('#user-name').textContent = yo.nombre;
-        toast('Datos actualizados');
+        if (!await Auth.checkPassword(d.actual)) throw new Error('La contraseña actual no es correcta');
+        await DB.update('users', yo.id, { nombre: d.nombre });
+        if (d.nueva) await Auth.setPassword(d.nueva);
+        const cambioEmail = d.email.trim().toLowerCase() !== yo.email;
+        if (cambioEmail) await Auth.cambiarEmail(d.email);
+        $('#user-name').textContent = d.nombre;
+        toast(cambioEmail ? 'Datos guardados. Confirmá el cambio de email desde el link que te llegó.' : 'Datos actualizados');
         e.target.actual.value = e.target.nueva.value = '';
-      } catch (err) { toast(err.message, 'error'); }
-    });
-    $('#importar').addEventListener('change', async e => {
-      const f = e.target.files[0];
-      if (!f || !confirmar('Esto va a reemplazar TODOS los datos actuales por los de la copia. ¿Continuar?')) return;
-      try {
-        DB.importar(await f.text());
-        toast('Datos restaurados');
-        setTimeout(() => Auth.logout(), 800);
       } catch (err) { toast(err.message, 'error'); }
     });
   },
@@ -292,7 +280,8 @@ function formCliente(c = {}, nuevo = false) {
     ${campo('Nombre y apellido / Razón social', 'nombre', { value: c.nombre, required: true, full: true })}
     ${campo('DNI / CUIT', 'dni', { value: c.dni })}
     ${campo('Fecha de nacimiento', 'nacimiento', { type: 'date', value: c.nacimiento })}
-    ${campo('Email (será su usuario)', 'email', { type: 'email', value: c.email, required: true })}
+    ${nuevo ? campo('Email (será su usuario)', 'email', { type: 'email', value: c.email, required: true })
+      : campo('Email (usuario)', 'email', { type: 'email', value: c.email, attrs: 'disabled', hint: 'El cliente lo puede cambiar desde “Mis datos”' })}
     ${campo('Teléfono / WhatsApp', 'telefono', { type: 'tel', value: c.telefono, hint: 'Con código de área, ej: 11 5555-1234' })}
     ${campo('Dirección', 'direccion', { value: c.direccion, full: true })}
     ${nuevo ? campo('Contraseña inicial', 'password', { value: Math.random().toString(36).slice(2, 10), required: true, full: true, hint: 'Pasásela al cliente. Después la puede cambiar desde su portal.' }) : ''}
@@ -301,7 +290,7 @@ function formCliente(c = {}, nuevo = false) {
 }
 
 function datosCliente(d) {
-  return { nombre: d.nombre.trim(), dni: d.dni, nacimiento: d.nacimiento, telefono: d.telefono, direccion: d.direccion, notas: d.notas };
+  return { nombre: d.nombre.trim(), dni: d.dni, nacimiento: d.nacimiento || null, telefono: d.telefono, direccion: d.direccion, notas: d.notas };
 }
 
 function formPoliza(p = {}, clienteId = '') {
@@ -330,16 +319,14 @@ async function datosPoliza(d) {
   if (d.vigenciaHasta < d.vigenciaDesde) throw new Error('La vigencia "hasta" no puede ser anterior a "desde"');
   const out = { clienteId: d.clienteId, ramo: d.ramo, compania: d.compania.trim(), numero: d.numero.trim(), estado: d.estado, bien: d.bien.trim(),
     cobertura: d.cobertura, vigenciaDesde: d.vigenciaDesde, vigenciaHasta: d.vigenciaHasta, prima: +d.prima, suma: +d.suma || 0 };
-  const archivo = await leerArchivo(d.archivo);
+  const archivo = await subirSiHay(d.archivo, d.clienteId);
   if (archivo) out.archivo = archivo;
   return out;
 }
 
 function generarCuotas(pol, n) {
-  for (let i = 0; i < n; i++) {
-    DB.insert('pagos', { polizaId: pol.id, clienteId: pol.clienteId, periodo: `Cuota ${i + 1}/${n}`, monto: pol.prima,
-      vencimiento: sumarMeses(pol.vigenciaDesde, i), estado: 'pendiente', fechaPago: null, medio: null, comprobante: null });
-  }
+  return DB.insertMany('pagos', Array.from({ length: n }, (_, i) => ({ polizaId: pol.id, clienteId: pol.clienteId,
+    periodo: `Cuota ${i + 1}/${n}`, monto: pol.prima, vencimiento: sumarMeses(pol.vigenciaDesde, i), estado: 'pendiente' })));
 }
 
 function formPago(p = {}, clienteId = '') {
@@ -356,146 +343,141 @@ function formPago(p = {}, clienteId = '') {
 // ---------- Acciones ----------
 
 const acciones = {
-  nuevoCliente() {
+  async nuevoCliente() {
     modal('Nuevo cliente', formCliente({}, true), async d => {
-      const c = await crearUsuario({ role: 'cliente', ...datosCliente(d), email: d.email }, d.password);
-      toast('Cliente creado');
-      location.hash = '#cliente/' + c.id;
-      mostrarAcceso(c, d.password);
-    });
-  },
-
-  editarCliente(id) {
-    const c = DB.get('users', id);
-    modal('Editar cliente', formCliente(c), d => {
+      const { notas, ...datos } = datosCliente(d);
       const email = d.email.trim().toLowerCase();
-      if (DB._d.users.some(u => u.email === email && u.id !== id)) throw new Error('Ya existe un usuario con ese email');
-      DB.update('users', id, { ...datosCliente(d), email });
-      toast('Cliente actualizado');
-      refrescar();
+      const id = await Auth.crearCliente({ ...datos, email }, d.password);
+      if (notas) await DB.update('users', id, { notas });
+      toast('Cliente creado');
+      location.hash = '#cliente/' + id;
+      mostrarAcceso({ ...datos, email }, d.password);
     });
   },
 
-  resetPassword(id) {
+  async editarCliente(id) {
     const c = DB.get('users', id);
-    modal('Cambiar contraseña de ' + c.nombre, campo('Nueva contraseña', 'password', { value: Math.random().toString(36).slice(2, 10), required: true, full: true }),
-      async d => {
-        await Auth.setPassword(id, d.password);
-        toast('Contraseña actualizada');
-        mostrarAcceso(c, d.password);
-      });
+    modal('Editar cliente', formCliente(c), async d => {
+      await DB.update('users', id, datosCliente(d));
+      toast('Cliente actualizado');
+      await refrescar();
+    });
   },
 
-  enviarAcceso(id) { mostrarAcceso(DB.get('users', id)); },
-
-  toggleAcceso(id) {
+  async resetPassword(id) {
     const c = DB.get('users', id);
-    DB.update('users', id, { bloqueado: !c.bloqueado });
+    if (!confirmar(`¿Enviar a ${c.email} un email para que elija una contraseña nueva?`)) return;
+    await Auth.enviarRecupero(c.email);
+    toast('Email enviado a ' + c.email);
+  },
+
+  async enviarAcceso(id) { mostrarAcceso(DB.get('users', id)); },
+
+  async toggleAcceso(id) {
+    const c = DB.get('users', id);
+    await DB.update('users', id, { bloqueado: !c.bloqueado });
     toast(c.bloqueado ? 'Acceso deshabilitado' : 'Acceso habilitado');
-    refrescar();
+    await refrescar();
   },
 
-  eliminarCliente(id) {
-    if (!confirmar('¿Eliminar este cliente y TODAS sus pólizas, pagos, presupuestos y siniestros? No se puede deshacer.')) return;
-    ['polizas', 'pagos', 'presupuestos', 'siniestros'].forEach(col => DB.where(col, x => x.clienteId === id).forEach(x => DB.remove(col, x.id)));
-    DB.remove('users', id);
+  async eliminarCliente(id) {
+    if (!confirmar('¿Eliminar este cliente y TODAS sus pólizas, pagos, presupuestos y siniestros? No se puede deshacer.\n\nSi solo querés que no entre más al portal, usá “Deshabilitar acceso”.')) return;
+    await DB.remove('users', id);
     toast('Cliente eliminado');
     location.hash = '#clientes';
   },
 
-  nuevaPoliza(_, el) {
+  async nuevaPoliza(_, el) {
     if (!clientes().length) return toast('Primero cargá un cliente', 'error');
     modal('Nueva póliza', formPoliza({}, el.dataset.cliente), async d => {
-      const pol = DB.insert('polizas', { archivo: null, ...await datosPoliza(d) });
-      generarCuotas(pol, Math.min(24, Math.max(0, parseInt(d.cuotas) || 0)));
+      const pol = await DB.insert('polizas', { archivo: null, ...await datosPoliza(d) });
+      await generarCuotas(pol, Math.min(24, Math.max(0, parseInt(d.cuotas) || 0)));
       toast('Póliza creada');
-      refrescar();
+      await refrescar();
     });
   },
 
-  editarPoliza(id) {
+  async editarPoliza(id) {
     modal('Editar póliza', formPoliza(DB.get('polizas', id)), async d => {
       const datos = await datosPoliza(d);
-      DB.update('polizas', id, datos);
-      DB.where('pagos', p => p.polizaId === id).forEach(p => { p.clienteId = datos.clienteId; });
-      DB.save();
+      await DB.update('polizas', id, datos);
+      await DB.updateWhere('pagos', 'polizaId', id, { clienteId: datos.clienteId });
       toast('Póliza actualizada');
-      refrescar();
+      await refrescar();
     });
   },
 
-  renovarPoliza(id) {
+  async renovarPoliza(id) {
     const p = DB.get('polizas', id);
     const desde = p.vigenciaHasta;
     modal('Renovar póliza', formPoliza({ ...p, id: undefined, archivo: null, vigenciaDesde: desde, vigenciaHasta: sumarMeses(desde, 12) }), async d => {
-      const pol = DB.insert('polizas', { archivo: null, ...await datosPoliza(d) });
-      generarCuotas(pol, Math.min(24, Math.max(0, parseInt(d.cuotas) || 0)));
+      const pol = await DB.insert('polizas', { archivo: null, ...await datosPoliza(d) });
+      await generarCuotas(pol, Math.min(24, Math.max(0, parseInt(d.cuotas) || 0)));
       toast('Renovación creada');
-      refrescar();
+      await refrescar();
     }, 'Crear renovación');
   },
 
-  eliminarPoliza(id) {
+  async eliminarPoliza(id) {
     if (!confirmar('¿Eliminar esta póliza y sus cuotas?')) return;
-    DB.where('pagos', p => p.polizaId === id).forEach(p => DB.remove('pagos', p.id));
-    DB.remove('polizas', id);
+    await DB.remove('polizas', id);
     toast('Póliza eliminada');
-    refrescar();
+    await refrescar();
   },
 
-  descargarPoliza(id) { descargar(DB.get('polizas', id).archivo); },
+  descargarPoliza(id) { return descargar(DB.get('polizas', id).archivo); },
   certificado(id) { const p = DB.get('polizas', id); imprimirCertificado(p, DB.get('users', p.clienteId)); },
 
-  nuevoPago(_, el) {
-    modal('Registrar cuota', formPago({}, el.dataset.cliente), d => {
+  async nuevoPago(_, el) {
+    modal('Registrar cuota', formPago({}, el.dataset.cliente), async d => {
       const pol = DB.get('polizas', d.polizaId);
-      DB.insert('pagos', { ...d, monto: +d.monto, clienteId: pol.clienteId, estado: 'pendiente', fechaPago: null, medio: null, comprobante: null });
+      await DB.insert('pagos', { ...d, monto: +d.monto, clienteId: pol.clienteId, estado: 'pendiente' });
       toast('Cuota registrada');
-      refrescar();
+      await refrescar();
     });
   },
 
-  editarPago(id) {
-    modal('Editar cuota', formPago(DB.get('pagos', id)), d => {
-      DB.update('pagos', id, { ...d, monto: +d.monto, clienteId: DB.get('polizas', d.polizaId).clienteId });
+  async editarPago(id) {
+    modal('Editar cuota', formPago(DB.get('pagos', id)), async d => {
+      await DB.update('pagos', id, { ...d, monto: +d.monto, clienteId: DB.get('polizas', d.polizaId).clienteId });
       toast('Cuota actualizada');
-      refrescar();
+      await refrescar();
     });
   },
 
-  marcarPagado(id) {
+  async marcarPagado(id) {
     const p = DB.get('pagos', id);
     modal(`Registrar pago · ${p.periodo} · ${money(p.monto)}`, `<div class="form-grid">
       ${campo('Fecha de pago', 'fechaPago', { type: 'date', value: p.fechaPago || hoyISO(), required: true })}
       ${campo('Medio de pago', 'medio', { value: p.medio, options: MEDIOS })}
-      ${p.nota ? `<p class="full muted">Nota del cliente: ${esc(p.nota)}</p>` : ''}</div>`, d => {
-      DB.update('pagos', id, { estado: 'pagado', fechaPago: d.fechaPago, medio: d.medio });
+      ${p.nota ? `<p class="full muted">Nota del cliente: ${esc(p.nota)}</p>` : ''}</div>`, async d => {
+      await DB.update('pagos', id, { estado: 'pagado', fechaPago: d.fechaPago, medio: d.medio });
       toast('Pago registrado');
-      refrescar();
+      await refrescar();
     }, 'Confirmar pago');
   },
 
-  rechazarPago(id) {
+  async rechazarPago(id) {
     if (!confirmar('¿Rechazar el pago informado? La cuota vuelve a quedar pendiente.')) return;
-    DB.update('pagos', id, { estado: 'pendiente', fechaPago: null, medio: null });
-    refrescar();
+    await DB.update('pagos', id, { estado: 'pendiente', fechaPago: null, medio: null });
+    await refrescar();
   },
 
-  desmarcarPago(id) {
+  async desmarcarPago(id) {
     if (!confirmar('¿Anular el pago de esta cuota?')) return;
-    DB.update('pagos', id, { estado: 'pendiente', fechaPago: null, medio: null });
-    refrescar();
+    await DB.update('pagos', id, { estado: 'pendiente', fechaPago: null, medio: null });
+    await refrescar();
   },
 
-  eliminarPago(id) {
+  async eliminarPago(id) {
     if (!confirmar('¿Eliminar esta cuota?')) return;
-    DB.remove('pagos', id);
-    refrescar();
+    await DB.remove('pagos', id);
+    await refrescar();
   },
 
-  verComprobante(id) { descargar(DB.get('pagos', id).comprobante); },
+  verComprobante(id) { return descargar(DB.get('pagos', id).comprobante); },
 
-  responderPresupuesto(id) {
+  async responderPresupuesto(id) {
     const p = DB.get('presupuestos', id);
     const cli = p.clienteId ? DB.get('users', p.clienteId) : null;
     const tel = cli ? cli.telefono : p.telefono;
@@ -520,21 +502,21 @@ const acciones = {
           options: [['nuevo', 'Nuevo'], ['respondido', 'Respondido'], ['aceptado', 'Aceptado por el cliente'], ['rechazado', 'Rechazado'], ['cerrado', 'Cerrado']] })}
       </div>`, async d => {
       const patch = { compania: d.compania, monto: +d.monto || null, respuesta: d.respuesta, estado: d.estado, respondido: new Date().toISOString() };
-      const archivo = await leerArchivo(d.archivo);
+      const archivo = await subirSiHay(d.archivo, p.clienteId);
       if (archivo) patch.archivo = archivo;
-      DB.update('presupuestos', id, patch);
+      await DB.update('presupuestos', id, patch);
       toast('Presupuesto guardado');
-      refrescar();
+      await refrescar();
     });
   },
 
-  eliminarPresupuesto(id) {
+  async eliminarPresupuesto(id) {
     if (!confirmar('¿Eliminar esta solicitud?')) return;
-    DB.remove('presupuestos', id);
-    refrescar();
+    await DB.remove('presupuestos', id);
+    await refrescar();
   },
 
-  verSiniestro(id) {
+  async verSiniestro(id) {
     const s = DB.get('siniestros', id);
     modal('Siniestro de ' + nombreCliente(s.clienteId), `
       <dl class="dl">
@@ -551,18 +533,18 @@ const acciones = {
         ${campo('Estado', 'estado', { value: s.estado, options: ESTADOS_SINIESTRO })}
         ${campo('N° de siniestro en la compañía', 'numero', { value: s.numero })}
         ${campo('Novedad para el cliente', 'texto', { type: 'textarea', full: true, hint: 'El cliente la ve en su portal' })}
-      </div>`, d => {
+      </div>`, async d => {
       const notas = [...(s.notas || [])];
       if (d.texto.trim() || d.estado !== s.estado) notas.push({ fecha: new Date().toISOString(), estado: d.estado, texto: d.texto.trim() || 'Cambio de estado' });
-      DB.update('siniestros', id, { estado: d.estado, numero: d.numero, notas });
+      await DB.update('siniestros', id, { estado: d.estado, numero: d.numero, notas });
       toast('Siniestro actualizado');
-      refrescar();
+      await refrescar();
     });
     const btn = $('#dl-sin');
-    if (btn) btn.onclick = () => descargar(s.archivo);
+    if (btn) btn.onclick = () => descargar(s.archivo).catch(err => toast(err.message, 'error'));
   },
 
-  exportar() {
+  async exportar() {
     const blob = new Blob([DB.exportar()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -578,7 +560,7 @@ function mostrarAcceso(c, password) {
   modal('Datos de acceso', `
     <p>Enviale estos datos al cliente para que pueda ingresar a su portal:</p>
     <div class="reply" id="txt-acceso">${esc(texto)}</div>
-    ${password ? '' : '<p class="muted" style="font-size:14px">Por seguridad no se puede ver la contraseña actual. Si el cliente no la recuerda, usá “Cambiar contraseña”.</p>'}
+    ${password ? '' : '<p class="muted" style="font-size:14px">Por seguridad no se puede ver la contraseña. Si el cliente no la recuerda, usá “Enviar cambio de contraseña” o que toque “Olvidé mi contraseña” al ingresar.</p>'}
     <div class="actions" style="margin-top:14px">
       ${wa ? `<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">Enviar por WhatsApp</a>` : ''}
       <a class="btn ghost" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Acceso al portal de clientes')}&body=${encodeURIComponent(texto)}">Enviar por email</a>
@@ -590,16 +572,14 @@ function mostrarAcceso(c, password) {
 // ---------- Inicio ----------
 
 (async () => {
-  await DB.init();
-  yo = Auth.require('admin');
+  if (!CONFIGURADO) return pantallaSinConfigurar();
+  yo = await Auth.require('admin');
   $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
   $('#user-name').textContent = yo.nombre;
   document.title = 'Panel · ' + CONFIG.marca;
-  document.addEventListener('click', e => {
-    const el = e.target.closest('[data-act]');
-    if (!el || !acciones[el.dataset.act]) return;
-    e.preventDefault();
-    acciones[el.dataset.act](el.dataset.id, el);
+  conectarAcciones(acciones);
+  refrescar = iniciarRouter(vistas, 'inicio', async () => {
+    await DB.cargar();
+    yo = DB.get('users', yo.id) || yo;
   });
-  refrescar = iniciarRouter(vistas, 'inicio');
 })();

@@ -12,26 +12,29 @@ function fdate(d) {
   return f.toLocaleDateString('es-AR');
 }
 
-const MAX_ARCHIVO = 1.5 * 1024 * 1024;
+const MAX_ARCHIVO = 10 * 1024 * 1024;
 
-function leerArchivo(file) {
-  return new Promise((resolve, reject) => {
-    if (!file || !file.size) return resolve(null);
-    if (file.size > MAX_ARCHIVO) return reject(new Error('El archivo supera 1,5 MB. Probá comprimirlo.'));
-    const r = new FileReader();
-    r.onload = () => resolve({ nombre: file.name, tipo: file.type, dataUrl: r.result });
-    r.onerror = () => reject(new Error('No se pudo leer el archivo'));
-    r.readAsDataURL(file);
-  });
+// Devuelve el archivo elegido en un <input type=file> (o null) validando el tamaño
+function archivoElegido(file) {
+  if (!file || !file.size) return null;
+  if (file.size > MAX_ARCHIVO) throw new Error('El archivo supera 10 MB. Probá comprimirlo.');
+  return file;
 }
 
-function descargar(archivo) {
+async function subirSiHay(file, clienteId) {
+  const f = archivoElegido(file);
+  return f ? Archivos.subir(f, clienteId) : null;
+}
+
+async function descargar(archivo) {
+  if (!archivo) return;
   const a = document.createElement('a');
-  a.href = archivo.dataUrl;
-  a.download = archivo.nombre;
+  a.href = URL.createObjectURL(await Archivos.bajar(archivo));
+  a.download = archivo.nombre.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   document.body.appendChild(a);
   a.click();
   a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
 function toast(msg, tipo = 'ok') {
@@ -162,16 +165,40 @@ function linkWhatsapp(tel, texto = '') {
 }
 
 // Router por hash compartido
-function iniciarRouter(rutas, porDefecto) {
-  const render = () => {
+// `antes` se ejecuta antes de cada pantalla (recarga los datos del servidor)
+function iniciarRouter(rutas, porDefecto, antes) {
+  let ultima = '';
+  const render = async () => {
     const [r, id] = location.hash.slice(1).split('/');
     const ruta = rutas[r] ? r : porDefecto;
     $$('.nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + ruta));
     document.body.classList.remove('menu-open');
-    rutas[ruta](id ? decodeURIComponent(id) : undefined);
-    window.scrollTo(0, 0);
+    try {
+      if (antes) await antes();
+      rutas[ruta](id ? decodeURIComponent(id) : undefined);
+    } catch (err) {
+      $('#view').innerHTML = `<div class="empty">No se pudieron cargar los datos: ${esc(err.message)}<br><br><button class="btn" onclick="location.reload()">Reintentar</button></div>`;
+    }
+    if (location.hash !== ultima) window.scrollTo(0, 0);
+    ultima = location.hash;
   };
   window.addEventListener('hashchange', render);
   render();
   return render;
+}
+
+// Conecta los botones con data-act a las funciones de `acciones`
+function conectarAcciones(acciones) {
+  document.addEventListener('click', async e => {
+    const el = e.target.closest('[data-act]');
+    if (!el || !acciones[el.dataset.act]) return;
+    e.preventDefault();
+    try { await acciones[el.dataset.act](el.dataset.id, el); }
+    catch (err) { toast(err.message, 'error'); }
+  });
+}
+
+function pantallaSinConfigurar() {
+  document.body.innerHTML = `<div class="auth-page"><div class="auth-card"><h1>Falta conectar la base de datos</h1>
+    <p>Completá <code>supabaseUrl</code> y <code>supabaseKey</code> en <code>js/config.js</code>. Los pasos están en <code>SUPABASE.md</code>.</p></div></div>`;
 }

@@ -127,7 +127,6 @@ tr.click:hover td { background: #f8fafc; }
 .auth-card h1 { font-size: 22px; }
 .auth-card form { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
 .auth-card .btn { justify-content: center; padding: 12px; }
-.demo { font-size: 13px; background: var(--bg); padding: 10px 12px; border-radius: 8px; margin-top: 18px; }
 .error-msg { color: var(--red); font-size: 14px; min-height: 1.2em; }
 
 /* Sitio público */

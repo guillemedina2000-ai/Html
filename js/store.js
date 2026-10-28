@@ -1,13 +1,16 @@
-// Capa de datos. Hoy guarda todo en el navegador (localStorage) para poder
-// probar el sistema sin servidor. Para usarlo en producción con varios
-// dispositivos hay que reemplazar este archivo por uno que hable con una base
-// de datos real (por ej. Supabase o Firebase) manteniendo las mismas funciones.
+// Capa de datos conectada a Supabase (base de datos, usuarios y archivos).
+// Las lecturas se hacen sobre una copia en memoria que se recarga en cada
+// pantalla; las escrituras van directo a Supabase. Las reglas de seguridad
+// (qué ve y qué puede cambiar cada usuario) están en supabase/schema.sql.
 
-const DB_KEY = 'pas_db_v1';
-const SESSION_KEY = 'pas_session';
-const COLECCIONES = ['users', 'polizas', 'pagos', 'presupuestos', 'siniestros'];
+const CONFIGURADO = /^https?:\/\/.+/.test(CONFIG.supabaseUrl) && CONFIG.supabaseKey.length > 20;
+const sb = CONFIGURADO ? supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey) : null;
+const BUCKET = 'archivos';
+const TABLAS = { users: 'profiles', polizas: 'polizas', pagos: 'pagos', presupuestos: 'presupuestos', siniestros: 'siniestros' };
 
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+// Si se llega desde el email de "recuperar contraseña" hay que pedir la nueva clave
+let ES_RECUPERO = location.hash.includes('type=recovery');
+if (sb) sb.auth.onAuthStateChange(ev => { if (ev === 'PASSWORD_RECOVERY') ES_RECUPERO = true; });
 
 function hoyISO(offsetDias = 0) {
   const d = new Date();
@@ -21,27 +24,35 @@ function sumarMeses(iso, n) {
   return f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
 }
 
-async function hashPassword(pass, salt) {
-  const data = new TextEncoder().encode(salt + ':' + pass);
-  const buf = await crypto.subtle.digest('SHA-256', data);
-  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+const MENSAJES_ERROR = [
+  [/already registered|already been registered|already exists/i, 'Ya existe un usuario con ese email'],
+  [/Invalid login credentials/i, 'Email o contraseña incorrectos'],
+  [/Email not confirmed/i, 'Tenés que confirmar tu email antes de ingresar (revisá tu casilla)'],
+  [/Password should be at least/i, 'La contraseña debe tener al menos 6 caracteres'],
+  [/row-level security|permission denied/i, 'No tenés permiso para hacer esto'],
+  [/Failed to fetch|NetworkError/i, 'No hay conexión con el servidor. Revisá tu internet.'],
+  [/rate limit/i, 'Demasiados intentos. Esperá unos minutos y probá de nuevo.'],
+];
+
+function fallo(error) {
+  const msg = error?.message || String(error);
+  const traducido = MENSAJES_ERROR.find(([re]) => re.test(msg));
+  return new Error(traducido ? traducido[1] : msg);
 }
 
 const DB = {
-  _d: null,
+  _d: { users: [], polizas: [], pagos: [], presupuestos: [], siniestros: [] },
 
-  async init() {
-    try { this._d = JSON.parse(localStorage.getItem(DB_KEY)); } catch { this._d = null; }
-    if (!this._d) await this.seed();
-    COLECCIONES.forEach(c => { this._d[c] = this._d[c] || []; });
-  },
-
-  save() {
-    try {
-      localStorage.setItem(DB_KEY, JSON.stringify(this._d));
-    } catch {
-      this._d = JSON.parse(localStorage.getItem(DB_KEY));
-      throw new Error('No hay espacio suficiente para guardar. Probá con un archivo más liviano.');
+  // Trae todo lo que el usuario actual puede ver (el productor ve todo, el cliente solo lo suyo)
+  async cargar() {
+    const cols = Object.keys(TABLAS);
+    const res = await Promise.all(cols.map(c => sb.from(TABLAS[c]).select('*').limit(10000)));
+    res.forEach((r, i) => { if (r.error) throw fallo(r.error); this._d[cols[i]] = r.data; });
+    if (Auth.user?.role === 'admin') {
+      const { data, error } = await sb.from('notas').select('*');
+      if (error) throw fallo(error);
+      const notas = Object.fromEntries(data.map(n => [n.clienteId, n.texto]));
+      this._d.users.forEach(u => { u.notas = notas[u.id] || ''; });
     }
   },
 
@@ -49,105 +60,153 @@ const DB = {
   get(col, id) { return this._d[col].find(x => x.id === id) || null; },
   where(col, fn) { return this._d[col].filter(fn); },
 
-  insert(col, obj) {
-    const item = { id: uid(), creado: new Date().toISOString(), ...obj };
-    this._d[col].push(item);
-    this.save();
-    return item;
+  async insert(col, obj) {
+    const { data, error } = await sb.from(TABLAS[col]).insert(obj).select().single();
+    if (error) throw fallo(error);
+    this._d[col].push(data);
+    return data;
   },
 
-  update(col, id, patch) {
-    const item = this.get(col, id);
-    if (!item) throw new Error('Registro no encontrado');
-    Object.assign(item, patch);
-    this.save();
-    return item;
+  async insertMany(col, lista) {
+    if (!lista.length) return [];
+    const { data, error } = await sb.from(TABLAS[col]).insert(lista).select();
+    if (error) throw fallo(error);
+    this._d[col].push(...data);
+    return data;
   },
 
-  remove(col, id) {
+  async update(col, id, patch) {
+    patch = { ...patch };
+    if (col === 'users' && 'notas' in patch) {
+      const { error } = await sb.from('notas').upsert({ clienteId: id, texto: patch.notas });
+      if (error) throw fallo(error);
+      delete patch.notas;
+      if (!Object.keys(patch).length) return this.get(col, id);
+    }
+    const { data, error } = await sb.from(TABLAS[col]).update(patch).eq('id', id).select().single();
+    if (error) throw fallo(error);
+    return Object.assign(this.get(col, id) || {}, data);
+  },
+
+  async updateWhere(col, campo, valor, patch) {
+    const { error } = await sb.from(TABLAS[col]).update(patch).eq(campo, valor);
+    if (error) throw fallo(error);
+    this._d[col].filter(x => x[campo] === valor).forEach(x => Object.assign(x, patch));
+  },
+
+  async remove(col, id) {
+    const { error } = await sb.from(TABLAS[col]).delete().eq('id', id);
+    if (error) throw fallo(error);
     this._d[col] = this._d[col].filter(x => x.id !== id);
-    this.save();
   },
 
-  exportar() { return JSON.stringify(this._d, null, 2); },
-
-  importar(json) {
-    const d = JSON.parse(json);
-    if (!d || !Array.isArray(d.users)) throw new Error('El archivo no es una copia de seguridad válida');
-    this._d = d;
-    COLECCIONES.forEach(c => { this._d[c] = this._d[c] || []; });
-    this.save();
+  // Formulario público: el visitante no puede leer la tabla, solo insertar
+  async pedirPresupuestoPublico(datos) {
+    const { error } = await sb.from('presupuestos').insert({ ...datos, clienteId: null, estado: 'nuevo' });
+    if (error) throw fallo(error);
   },
 
-  async seed() {
-    this._d = { users: [], polizas: [], pagos: [], presupuestos: [], siniestros: [] };
-    const admin = await crearUsuario({ role: 'admin', nombre: CONFIG.marca, email: 'admin@demo.com' }, 'admin123', false);
-    const cli = await crearUsuario({
-      role: 'cliente', nombre: 'Juan Pérez', dni: '30123456', email: 'cliente@demo.com',
-      telefono: '11 5555-1234', direccion: 'Av. Siempreviva 742, CABA',
-    }, 'cliente123', false);
-
-    const desde = sumarMeses(hoyISO(), -3);
-    const auto = { id: uid(), creado: new Date().toISOString(), clienteId: cli.id, ramo: 'Auto', compania: 'Sancor', numero: 'AU-104582',
-      bien: 'Volkswagen Gol Trend 2019 - Patente AB123CD', cobertura: 'Terceros completo con granizo',
-      vigenciaDesde: desde, vigenciaHasta: sumarMeses(desde, 12), prima: 38500, suma: 9500000, estado: 'activa', archivo: null };
-    const hogar = { id: uid(), creado: new Date().toISOString(), clienteId: cli.id, ramo: 'Hogar', compania: 'La Segunda', numero: 'HO-88213',
-      bien: 'Departamento - Av. Siempreviva 742, CABA', cobertura: 'Integral de consorcio y contenido',
-      vigenciaDesde: sumarMeses(hoyISO(), -11), vigenciaHasta: hoyISO(20), prima: 12900, suma: 25000000, estado: 'activa', archivo: null };
-    this._d.polizas.push(auto, hogar);
-    [auto, hogar].forEach(p => {
-      for (let i = 0; i < 4; i++) {
-        const venc = sumarMeses(p.vigenciaDesde, i);
-        const pagado = venc < hoyISO(-25);
-        this._d.pagos.push({ id: uid(), creado: new Date().toISOString(), polizaId: p.id, clienteId: cli.id, periodo: `Cuota ${i + 1}`,
-          monto: p.prima, vencimiento: venc, estado: pagado ? 'pagado' : 'pendiente', fechaPago: pagado ? venc : null,
-          medio: pagado ? 'Débito automático' : null, comprobante: null });
-      }
-    });
-    this._d.presupuestos.push({ id: uid(), creado: new Date().toISOString(), clienteId: null, nombre: 'María Gómez', email: 'maria@ejemplo.com',
-      telefono: '11 4444-9876', ramo: 'Auto', detalle: 'Quiero cotizar un Fiat Cronos 2022, uso particular, CABA.', estado: 'nuevo' });
-    this.save();
-    return admin;
+  exportar() {
+    const d = { exportado: new Date().toISOString(), ...this._d };
+    return JSON.stringify(d, null, 2);
   },
 };
 
-async function crearUsuario(datos, password, guardar = true) {
-  const email = datos.email.trim().toLowerCase();
-  if (DB._d.users.some(u => u.email === email)) throw new Error('Ya existe un usuario con ese email');
-  const salt = uid();
-  const user = { id: uid(), creado: new Date().toISOString(), ...datos, email, salt, passHash: await hashPassword(password, salt) };
-  DB._d.users.push(user);
-  if (guardar) DB.save();
-  return user;
+// ---------- Archivos ----------
+
+const Archivos = {
+  // Sube un archivo a la carpeta del cliente y devuelve la referencia que se guarda en la tabla
+  async subir(file, clienteId) {
+    const limpio = file.name.normalize('NFD').replace(/[^\w.-]+/g, '_').slice(-80);
+    const path = `${clienteId || 'publico'}/${Date.now()}-${limpio}`;
+    const { error } = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type || undefined });
+    if (error) throw fallo(error);
+    return { nombre: file.name, tipo: file.type, path };
+  },
+
+  async bajar(archivo) {
+    const { data, error } = await sb.storage.from(BUCKET).download(archivo.path);
+    if (error) throw fallo(error);
+    return data;
+  },
+};
+
+// ---------- Usuarios ----------
+
+async function perfil(id) {
+  const { data, error } = await sb.from('profiles').select('*').eq('id', id).maybeSingle();
+  if (error) throw fallo(error);
+  return data;
 }
 
 const Auth = {
+  user: null,
+
   async login(email, password) {
-    const u = DB._d.users.find(x => x.email === email.trim().toLowerCase());
-    if (!u || u.passHash !== await hashPassword(password, u.salt)) throw new Error('Email o contraseña incorrectos');
-    if (u.bloqueado) throw new Error('Tu cuenta está deshabilitada. Comunicate con tu productor.');
-    sessionStorage.setItem(SESSION_KEY, u.id);
+    const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw fallo(error);
+    const p = await perfil(data.user.id);
+    if (!p || p.bloqueado) {
+      await sb.auth.signOut();
+      throw new Error(p ? 'Tu cuenta está deshabilitada. Comunicate con tu productor.' : 'Tu usuario no tiene un perfil asignado. Comunicate con tu productor.');
+    }
+    return (this.user = p);
+  },
+
+  async current() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return null;
+    return (this.user = await perfil(session.user.id));
+  },
+
+  async require(role) {
+    const u = await this.current().catch(() => null);
+    if (!u || u.role !== role || u.bloqueado) {
+      if (u) await sb.auth.signOut();
+      location.href = 'login.html';
+      throw new Error('Sin sesión');
+    }
     return u;
   },
-  current() {
-    const id = sessionStorage.getItem(SESSION_KEY);
-    return id ? DB.get('users', id) : null;
-  },
-  require(role) {
-    const u = this.current();
-    if (!u || u.role !== role) { location.href = 'login.html'; throw new Error('Sin sesión'); }
-    return u;
-  },
-  logout() {
-    sessionStorage.removeItem(SESSION_KEY);
+
+  async logout() {
+    await sb.auth.signOut();
     location.href = 'login.html';
   },
-  async setPassword(userId, password) {
+
+  // Cambia la contraseña del usuario que está logueado
+  async setPassword(password) {
     if (!password || password.length < 6) throw new Error('La contraseña debe tener al menos 6 caracteres');
-    const salt = uid();
-    DB.update('users', userId, { salt, passHash: await hashPassword(password, salt) });
+    const { error } = await sb.auth.updateUser({ password });
+    if (error) throw fallo(error);
   },
-  async checkPassword(user, password) {
-    return user.passHash === await hashPassword(password, user.salt);
+
+  async checkPassword(password) {
+    const { error } = await sb.auth.signInWithPassword({ email: this.user.email, password });
+    return !error;
+  },
+
+  async cambiarEmail(email) {
+    const { error } = await sb.auth.updateUser({ email: email.trim() }, { emailRedirectTo: urlLogin() });
+    if (error) throw fallo(error);
+  },
+
+  // El productor crea la cuenta del cliente. Se usa una conexión aparte para no cerrar la sesión del productor.
+  async crearCliente(datos, password) {
+    const tmp = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey,
+      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'alta-cliente' } });
+    const { data, error } = await tmp.auth.signUp({ email: datos.email.trim(), password, options: { data: datos, emailRedirectTo: urlLogin() } });
+    if (error) throw fallo(error);
+    if (!data.user || (data.user.identities && !data.user.identities.length)) throw new Error('Ya existe un usuario con ese email');
+    return data.user.id;
+  },
+
+  async enviarRecupero(email) {
+    const { error } = await sb.auth.resetPasswordForEmail(email.trim(), { redirectTo: urlLogin() });
+    if (error) throw fallo(error);
   },
 };
+
+function urlLogin() {
+  return location.href.replace(/[^/]*([?#].*)?$/, 'login.html');
+}

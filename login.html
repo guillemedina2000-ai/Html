@@ -11,37 +11,89 @@
     <div class="auth-card">
       <a href="index.html" style="text-decoration:none;font-size:14px">← Volver al sitio</a>
       <h1 style="margin-top:14px" data-cfg="marca"></h1>
-      <p class="muted" style="margin:0">Ingresá a tu cuenta para ver tus pólizas, pagos y presupuestos.</p>
-      <form id="login">
-        <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
-        <label class="field"><span>Contraseña</span><input type="password" name="password" required autocomplete="current-password"></label>
-        <div class="error-msg" id="err"></div>
-        <button class="btn" type="submit">Ingresar</button>
-      </form>
-      <p class="muted" style="font-size:14px">¿No tenés usuario u olvidaste tu contraseña? Pedíselo a tu productor por <a id="wa" target="_blank" rel="noopener">WhatsApp</a>.</p>
-      <div class="demo"><strong>Usuarios de prueba</strong><br>
-        Productor: admin@demo.com / admin123<br>
-        Cliente: cliente@demo.com / cliente123</div>
+
+      <div id="paso-login">
+        <p class="muted" style="margin:0">Ingresá a tu cuenta para ver tus pólizas, pagos y presupuestos.</p>
+        <form id="login">
+          <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+          <label class="field"><span>Contraseña</span><input type="password" name="password" required autocomplete="current-password"></label>
+          <div class="error-msg" id="err"></div>
+          <button class="btn" type="submit">Ingresar</button>
+        </form>
+        <p style="font-size:14px;text-align:center"><a href="#" id="ir-olvido">Olvidé mi contraseña</a></p>
+        <p class="muted" style="font-size:14px">¿Todavía no tenés usuario? Pedíselo a tu productor por <a id="wa" target="_blank" rel="noopener">WhatsApp</a>.</p>
+      </div>
+
+      <div id="paso-olvido" class="hidden">
+        <p class="muted" style="margin:0">Ingresá tu email y te enviamos un link para elegir una contraseña nueva.</p>
+        <form id="olvido">
+          <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+          <div class="error-msg" id="err-olvido"></div>
+          <button class="btn" type="submit">Enviar link</button>
+        </form>
+        <p style="font-size:14px;text-align:center"><a href="#" id="volver">Volver a ingresar</a></p>
+      </div>
+
+      <div id="paso-nueva" class="hidden">
+        <p class="muted" style="margin:0">Elegí tu nueva contraseña.</p>
+        <form id="nueva">
+          <label class="field"><span>Nueva contraseña</span><input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+          <label class="field"><span>Repetir contraseña</span><input type="password" name="repetir" required autocomplete="new-password"></label>
+          <div class="error-msg" id="err-nueva"></div>
+          <button class="btn" type="submit">Guardar contraseña</button>
+        </form>
+      </div>
     </div>
   </div>
   <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script>
     (async () => {
-      await DB.init();
+      if (!CONFIGURADO) return pantallaSinConfigurar();
       $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
       document.title = 'Ingresar - ' + CONFIG.marca;
       $('#wa').href = linkWhatsapp(CONFIG.whatsapp, 'Hola! Necesito un usuario para el portal de clientes.');
+
+      const paso = id => ['login', 'olvido', 'nueva'].forEach(p => $('#paso-' + p).classList.toggle('hidden', p !== id));
       const ir = u => { location.href = u.role === 'admin' ? 'admin.html' : 'cliente.html'; };
-      const actual = Auth.current();
-      if (actual) return ir(actual);
-      $('#login').addEventListener('submit', async e => {
+      const enviar = (form, err, fn) => $(form).addEventListener('submit', async e => {
         e.preventDefault();
-        const d = Object.fromEntries(new FormData(e.target));
-        try { ir(await Auth.login(d.email, d.password)); }
-        catch (err) { $('#err').textContent = err.message; }
+        if (!e.target.reportValidity()) return;
+        const btn = $('[type=submit]', e.target);
+        btn.disabled = true;
+        $(err).textContent = '';
+        try { await fn(Object.fromEntries(new FormData(e.target)), e.target); }
+        catch (x) { $(err).textContent = x.message; }
+        finally { btn.disabled = false; }
       });
+
+      $('#ir-olvido').onclick = e => { e.preventDefault(); paso('olvido'); };
+      $('#volver').onclick = e => { e.preventDefault(); paso('login'); };
+
+      enviar('#login', '#err', async d => ir(await Auth.login(d.email, d.password)));
+
+      enviar('#olvido', '#err-olvido', async (d, f) => {
+        await Auth.enviarRecupero(d.email);
+        f.reset();
+        toast('Si el email está registrado, te llegará un link en unos minutos.');
+        paso('login');
+      });
+
+      enviar('#nueva', '#err-nueva', async d => {
+        if (d.password !== d.repetir) throw new Error('Las contraseñas no coinciden');
+        await Auth.setPassword(d.password);
+        const u = await Auth.current();
+        if (!u || u.bloqueado) throw new Error('Tu cuenta no está habilitada. Comunicate con tu productor.');
+        toast('Contraseña actualizada');
+        setTimeout(() => ir(u), 800);
+      });
+
+      // Esperar a que Supabase procese el link del email (si se llegó desde uno)
+      const actual = await Auth.current().catch(() => null);
+      if (ES_RECUPERO && actual) return paso('nueva');
+      if (actual && !actual.bloqueado) return ir(actual);
     })();
   </script>
 </body>

@@ -89,11 +89,11 @@
   <a class="wa-float" id="wa" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
 
   <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
   <script src="js/store.js"></script>
   <script src="js/ui.js"></script>
   <script>
     (async () => {
-      await DB.init();
       document.title = `${CONFIG.marca} - ${CONFIG.productor}`;
       $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
       $('#mail').textContent = CONFIG.email;
@@ -108,14 +108,23 @@
         campo('Detalle', 'detalle', { type: 'textarea', full: true, required: true,
           attrs: 'placeholder="Ej: auto marca, modelo, año y localidad / tipo de vivienda y metros / etc."' });
 
-      $('#quote').addEventListener('submit', e => {
+      $('#quote').addEventListener('submit', async e => {
         e.preventDefault();
         const f = e.target;
         if (!f.reportValidity()) return;
         const d = Object.fromEntries(new FormData(f));
-        DB.insert('presupuestos', { ...d, clienteId: null, estado: 'nuevo' });
-        f.reset();
-        toast('¡Gracias! Recibimos tu solicitud y te vamos a contactar a la brevedad.');
+        const btn = $('[type=submit]', f);
+        btn.disabled = true;
+        try {
+          if (!CONFIGURADO) throw new Error('El formulario todavía no está conectado. Escribinos por WhatsApp.');
+          await DB.pedirPresupuestoPublico(d);
+          f.reset();
+          toast('¡Gracias! Recibimos tu solicitud y te vamos a contactar a la brevedad.');
+        } catch (err) {
+          toast(err.message, 'error');
+        } finally {
+          btn.disabled = false;
+        }
       });
     })();
   </script>

@@ -1,5 +1,9 @@
 // Datos del productor: editá estos valores con la información real.
 const CONFIG = {
+  // Datos del proyecto de Supabase (Project Settings → API). La clave "anon/public" es pública: puede ir acá.
+  supabaseUrl: '',
+  supabaseKey: '',
+
   marca: 'Medina Seguros',
   productor: 'Productor Asesor de Seguros',
   matricula: 'Matrícula SSN N° 00000',

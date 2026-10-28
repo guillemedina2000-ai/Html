@@ -6,41 +6,28 @@ Sitio web para un productor de seguros con:
 - **Panel del productor** (`admin.html`): clientes, pólizas (con PDF), cuotas y pagos, presupuestos, siniestros, recordatorios por WhatsApp, renovaciones y copia de seguridad.
 - **Portal del cliente** (`cliente.html`): ver y descargar sus pólizas, certificado de cobertura, ver pagos e informar pagos con comprobante, pedir y aceptar presupuestos, denunciar siniestros y seguir su estado, cambiar sus datos y contraseña.
 
-## Probarlo
+Los datos, usuarios y archivos se guardan en **Supabase**, así que el productor y cada cliente pueden entrar desde cualquier computadora o celular. Cada cliente ve solamente sus propios datos; esas reglas están en la base de datos (`supabase/schema.sql`), no solo en la página.
 
-Abrí `index.html` en el navegador (o publicalo con GitHub Pages) y entrá en **Ingresar** con:
+## Puesta en marcha
 
-| Rol       | Email            | Contraseña |
-|-----------|------------------|------------|
-| Productor | admin@demo.com   | admin123   |
-| Cliente   | cliente@demo.com | cliente123 |
-
-Cambiá la contraseña del productor desde **Ajustes** antes de usarlo en serio.
+Seguí los pasos de **[SUPABASE.md](SUPABASE.md)**: crear el proyecto, cargar `supabase/schema.sql`, crear el usuario del productor, completar `js/config.js` y publicar la página.
 
 ## Personalizar
 
-Editá `js/config.js`: nombre, matrícula SSN, teléfono, WhatsApp, email, datos para pagar, ramos y compañías.
-
-## Importante: dónde se guardan los datos
-
-Esta versión guarda todo **en el navegador** (localStorage). Sirve para probar y mostrar el sistema, pero:
-
-- Los datos solo existen en la computadora/navegador donde se cargaron: un cliente que entra desde su celular **no** ve lo que el productor cargó en su PC.
-- Usá **Ajustes → Descargar copia** para no perder información.
-
-Para que productor y clientes compartan la información desde cualquier dispositivo, el siguiente paso es conectar una base de datos en la nube (por ejemplo Supabase o Firebase, ambos con plan gratuito). Todo el acceso a datos está concentrado en `js/store.js`, así que es el único archivo que hay que reemplazar.
+Editá `js/config.js`: conexión a Supabase, nombre, matrícula SSN, teléfono, WhatsApp, email, datos para pagar, ramos y compañías.
 
 ## Estructura
 
 ```
-index.html      Sitio público
-login.html      Ingreso
-admin.html      Panel del productor
-cliente.html    Portal del cliente
-css/styles.css  Estilos
-js/config.js    Datos del productor
-js/store.js     Datos y usuarios
-js/ui.js        Utilidades de interfaz
-js/admin.js     Lógica del panel
-js/cliente.js   Lógica del portal
+index.html            Sitio público
+login.html            Ingreso y recuperación de contraseña
+admin.html            Panel del productor
+cliente.html          Portal del cliente
+css/styles.css        Estilos
+js/config.js          Datos del productor y conexión a Supabase
+js/store.js           Acceso a datos, archivos y usuarios (Supabase)
+js/ui.js              Utilidades de interfaz
+js/admin.js           Lógica del panel
+js/cliente.js         Lógica del portal
+supabase/schema.sql   Tablas, reglas de seguridad y almacenamiento de archivos
 ```

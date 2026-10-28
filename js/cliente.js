@@ -118,14 +118,16 @@ const vistas = {
             <div class="full"><button class="btn" type="submit">Cambiar contraseña</button></div>
           </form></div>
       </div>`;
-    $('#f-datos').addEventListener('submit', e => {
+    $('#f-datos').addEventListener('submit', async e => {
       e.preventDefault();
       if (!e.target.reportValidity()) return;
       const d = Object.fromEntries(new FormData(e.target));
-      const email = d.email.trim().toLowerCase();
-      if (DB._d.users.some(u => u.email === email && u.id !== yo.id)) return toast('Ese email ya está en uso', 'error');
-      DB.update('users', yo.id, { telefono: d.telefono, direccion: d.direccion, email });
-      toast('Datos actualizados');
+      try {
+        await DB.update('users', yo.id, { telefono: d.telefono, direccion: d.direccion });
+        const cambioEmail = d.email.trim().toLowerCase() !== yo.email;
+        if (cambioEmail) await Auth.cambiarEmail(d.email);
+        toast(cambioEmail ? 'Datos guardados. Para cambiar el email tocá el link que te enviamos a la casilla nueva.' : 'Datos actualizados');
+      } catch (err) { toast(err.message, 'error'); }
     });
     $('#f-pass').addEventListener('submit', async e => {
       e.preventDefault();
@@ -133,8 +135,8 @@ const vistas = {
       const d = Object.fromEntries(new FormData(e.target));
       try {
         if (d.nueva !== d.repetir) throw new Error('Las contraseñas nuevas no coinciden');
-        if (!await Auth.checkPassword(yo, d.actual)) throw new Error('La contraseña actual no es correcta');
-        await Auth.setPassword(yo.id, d.nueva);
+        if (!await Auth.checkPassword(d.actual)) throw new Error('La contraseña actual no es correcta');
+        await Auth.setPassword(d.nueva);
         e.target.reset();
         toast('Contraseña actualizada');
       } catch (err) { toast(err.message, 'error'); }
@@ -160,10 +162,10 @@ function tarjetasPolizas(lista) {
 }
 
 const acciones = {
-  descargarPoliza(id) { const p = miPoliza(id); if (p?.archivo) descargar(p.archivo); },
+  descargarPoliza(id) { const p = miPoliza(id); if (p?.archivo) return descargar(p.archivo); },
   certificado(id) { const p = miPoliza(id); if (p) imprimirCertificado(p, yo); },
 
-  informarPago(id) {
+  async informarPago(id) {
     const p = DB.get('pagos', id);
     if (!p || p.clienteId !== yo.id) return;
     modal(`Informar pago · ${p.periodo} · ${money(p.monto)}`, `<div class="form-grid">
@@ -172,42 +174,42 @@ const acciones = {
       ${campo('Comprobante', 'comprobante', { type: 'file', required: true, full: true, attrs: 'accept=".pdf,image/*"', hint: 'Foto o PDF del comprobante (máx. 1,5 MB)' })}
       ${campo('Comentario (opcional)', 'nota', { full: true })}
     </div>`, async d => {
-      const comprobante = await leerArchivo(d.comprobante);
-      if (!comprobante) throw new Error('Adjuntá el comprobante');
-      DB.update('pagos', id, { estado: 'informado', fechaPago: d.fechaPago, medio: d.medio, nota: d.nota, comprobante });
+      if (!archivoElegido(d.comprobante)) throw new Error('Adjuntá el comprobante');
+      const comprobante = await subirSiHay(d.comprobante, yo.id);
+      await DB.update('pagos', id, { estado: 'informado', fechaPago: d.fechaPago, medio: d.medio, nota: d.nota, comprobante });
       toast('¡Gracias! Tu productor va a confirmar el pago.');
-      refrescar();
+      await refrescar();
     }, 'Enviar');
   },
 
-  pedirPresupuesto() {
+  async pedirPresupuesto() {
     modal('Pedir presupuesto', `<div class="form-grid">
       ${campo('¿Qué querés asegurar?', 'ramo', { options: CONFIG.ramos, full: true })}
       ${campo('Detalle', 'detalle', { type: 'textarea', required: true, full: true,
         attrs: 'placeholder="Ej: auto marca, modelo, año, localidad y uso / tipo de vivienda / actividad del comercio…"' })}
-    </div>`, d => {
-      DB.insert('presupuestos', { clienteId: yo.id, ramo: d.ramo, detalle: d.detalle, estado: 'nuevo' });
+    </div>`, async d => {
+      await DB.insert('presupuestos', { clienteId: yo.id, ramo: d.ramo, detalle: d.detalle, estado: 'nuevo' });
       toast('Solicitud enviada. Te avisamos cuando esté la propuesta.');
       location.hash = '#presupuestos';
-      refrescar();
+      await refrescar();
     }, 'Enviar solicitud');
   },
 
-  descargarPresupuesto(id) { const p = DB.get('presupuestos', id); if (p?.clienteId === yo.id && p.archivo) descargar(p.archivo); },
+  descargarPresupuesto(id) { const p = DB.get('presupuestos', id); if (p?.clienteId === yo.id && p.archivo) return descargar(p.archivo); },
 
-  aceptarPresupuesto(id) {
+  async aceptarPresupuesto(id) {
     if (!confirmar('¿Aceptás esta propuesta? Tu productor se va a comunicar para avanzar con la emisión.')) return;
-    DB.update('presupuestos', id, { estado: 'aceptado' });
+    await DB.update('presupuestos', id, { estado: 'aceptado' });
     toast('¡Listo! Tu productor fue notificado.');
-    refrescar();
+    await refrescar();
   },
 
-  rechazarPresupuesto(id) {
-    DB.update('presupuestos', id, { estado: 'rechazado' });
-    refrescar();
+  async rechazarPresupuesto(id) {
+    await DB.update('presupuestos', id, { estado: 'rechazado' });
+    await refrescar();
   },
 
-  denunciarSiniestro() {
+  async denunciarSiniestro() {
     const pols = misPolizas().filter(p => estadoPoliza(p) !== 'anulada');
     if (!pols.length) return toast('No tenés pólizas para denunciar un siniestro', 'error');
     modal('Denunciar siniestro', `<div class="form-grid">
@@ -219,27 +221,25 @@ const acciones = {
         attrs: 'placeholder="Contanos cómo ocurrió. Si hubo terceros, incluí nombre, patente, compañía y póliza del otro vehículo."' })}
       ${campo('Fotos o documentación', 'archivo', { type: 'file', full: true, attrs: 'accept=".pdf,image/*"', hint: 'Opcional, máx. 1,5 MB' })}
     </div>`, async d => {
-      DB.insert('siniestros', { clienteId: yo.id, polizaId: d.polizaId, tipo: d.tipo, fecha: d.fecha, lugar: d.lugar, descripcion: d.descripcion,
-        archivo: await leerArchivo(d.archivo), estado: 'denunciado', notas: [] });
+      await DB.insert('siniestros', { clienteId: yo.id, polizaId: d.polizaId, tipo: d.tipo, fecha: d.fecha, lugar: d.lugar, descripcion: d.descripcion,
+        archivo: await subirSiHay(d.archivo, yo.id), estado: 'denunciado', notas: [] });
       toast('Siniestro enviado. Tu productor se va a comunicar con vos.');
       location.hash = '#siniestros';
-      refrescar();
+      await refrescar();
     }, 'Enviar denuncia');
   },
 };
 
 (async () => {
-  await DB.init();
-  yo = Auth.require('cliente');
-  if (yo.bloqueado) return Auth.logout();
+  if (!CONFIGURADO) return pantallaSinConfigurar();
+  yo = await Auth.require('cliente');
   $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
   $('#user-name').textContent = yo.nombre;
   document.title = 'Mi portal · ' + CONFIG.marca;
-  document.addEventListener('click', e => {
-    const el = e.target.closest('[data-act]');
-    if (!el || !acciones[el.dataset.act]) return;
-    e.preventDefault();
-    acciones[el.dataset.act](el.dataset.id, el);
+  conectarAcciones(acciones);
+  refrescar = iniciarRouter(vistas, 'inicio', async () => {
+    await DB.cargar();
+    yo = DB.get('users', yo.id) || yo;
+    if (yo.bloqueado) await Auth.logout();
   });
-  refrescar = iniciarRouter(vistas, 'inicio');
 })();
