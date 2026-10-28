@@ -34,10 +34,12 @@ Esto crea las tablas (clientes, pólizas, pagos, presupuestos, siniestros), la c
 
    ```sql
    update profiles set role = 'admin', nombre = 'Nombre del productor'
-   where email = 'email-del-productor@ejemplo.com';
+   where lower(email) = lower('email-del-productor@ejemplo.com');
+
+   select email, nombre, role from profiles;
    ```
 
-   Tiene que decir *Success. 1 row affected*. Desde ahora ese usuario entra al panel del productor; todos los demás usuarios son clientes.
+   Abajo tiene que aparecer el email del productor con `role` = `admin`. Desde ahora ese usuario entra al panel del productor; todos los demás usuarios son clientes.
 
 ## 5. Conectar la página con Supabase
 

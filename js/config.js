@@ -1,8 +1,8 @@
 // Datos del productor: editá estos valores con la información real.
 const CONFIG = {
-  // Datos del proyecto de Supabase (Project Settings → API). La clave "anon/public" es pública: puede ir acá.
-  supabaseUrl: '',
-  supabaseKey: '',
+  // Datos del proyecto de Supabase (Project Settings → API Keys). La clave publishable es pública: puede ir acá.
+  supabaseUrl: 'https://rishoiqmmtwvoqbkunyc.supabase.co',
+  supabaseKey: 'sb_publishable_JJBc0oOANBBZqSbwPmepxQ_ECkWJ5MP',
 
   marca: 'Medina Seguros',
   productor: 'Productor Asesor de Seguros',
