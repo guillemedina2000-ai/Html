@@ -105,7 +105,8 @@ const vistas = {
             ${campo('Nombre', 'nombre', { value: yo.nombre, full: true, attrs: 'disabled' })}
             ${campo('DNI / CUIT', 'dni', { value: yo.dni, attrs: 'disabled' })}
             ${campo('Teléfono', 'telefono', { type: 'tel', value: yo.telefono })}
-            ${campo('Email (usuario)', 'email', { type: 'email', value: yo.email, required: true, full: true })}
+            ${entraConDni(yo) ? campo('Usuario para ingresar', 'usuario', { value: usuarioVisible(yo), full: true, attrs: 'disabled' })
+              : campo('Email (usuario)', 'email', { type: 'email', value: yo.email, required: true, full: true })}
             ${campo('Dirección', 'direccion', { value: yo.direccion, full: true })}
             <p class="full muted" style="margin:0;font-size:13px">Para cambiar tu nombre o DNI comunicate con tu productor.</p>
             <div class="full"><button class="btn" type="submit">Guardar</button></div>
@@ -124,7 +125,7 @@ const vistas = {
       const d = Object.fromEntries(new FormData(e.target));
       try {
         await DB.update('users', yo.id, { telefono: d.telefono, direccion: d.direccion });
-        const cambioEmail = d.email.trim().toLowerCase() !== yo.email;
+        const cambioEmail = !!d.email && d.email.trim().toLowerCase() !== yo.email;
         if (cambioEmail) await Auth.cambiarEmail(d.email);
         toast(cambioEmail ? 'Datos guardados. Para cambiar el email tocá el link que te enviamos a la casilla nueva.' : 'Datos actualizados');
       } catch (err) { toast(err.message, 'error'); }
@@ -155,13 +156,15 @@ function tarjetasPolizas(lista) {
         Vigencia: ${fdate(p.vigenciaDesde)} al ${fdate(p.vigenciaHasta)}<br>
         Cuota: ${money(p.prima)}${p.suma ? ' · Suma asegurada: ' + money(p.suma) : ''}</div>
       <div class="actions">
-        ${p.archivo ? `<button class="btn sm" data-act="descargarPoliza" data-id="${p.id}">📎 Descargar póliza</button>` : ''}
+        ${p.archivo ? `<button class="btn sm" data-act="verPoliza" data-id="${p.id}">👁 Ver póliza</button>
+          <button class="btn sm ghost" data-act="descargarPoliza" data-id="${p.id}">⬇ Descargar</button>` : ''}
         <button class="btn sm ${p.archivo ? 'ghost' : ''}" data-act="certificado" data-id="${p.id}">📄 Certificado de cobertura</button>
       </div>
     </div>`).join('')}</div>`;
 }
 
 const acciones = {
+  verPoliza(id) { const p = miPoliza(id); if (p?.archivo) return verArchivo(p.archivo); },
   descargarPoliza(id) { const p = miPoliza(id); if (p?.archivo) return descargar(p.archivo); },
   certificado(id) { const p = miPoliza(id); if (p) imprimirCertificado(p, yo); },
 

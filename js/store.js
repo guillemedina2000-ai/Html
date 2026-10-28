@@ -6,6 +6,24 @@
 const CONFIGURADO = /^https?:\/\/.+/.test(CONFIG.supabaseUrl) && CONFIG.supabaseKey.length > 20;
 const sb = CONFIGURADO ? supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey) : null;
 const BUCKET = 'archivos';
+
+// Los clientes sin email entran con su DNI: internamente se les asigna este "email" que no existe
+const DOMINIO_DNI = '@dni.invalid';
+const soloDigitos = s => String(s ?? '').replace(/\D/g, '');
+const emailDeDni = dni => soloDigitos(dni) + DOMINIO_DNI;
+const entraConDni = u => !!u?.email?.endsWith(DOMINIO_DNI);
+const usuarioVisible = u => entraConDni(u) ? 'DNI ' + u.email.replace(DOMINIO_DNI, '') : (u?.email || '');
+
+// Lo que la persona escribe en "Email o DNI" → email de la cuenta
+function emailDeIngreso(texto) {
+  const t = String(texto || '').trim();
+  return t.includes('@') ? t.toLowerCase() : emailDeDni(t);
+}
+
+function contrasenaAleatoria() {
+  const letras = 'abcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from(crypto.getRandomValues(new Uint32Array(8)), n => letras[n % letras.length]).join('');
+}
 const TABLAS = { users: 'profiles', polizas: 'polizas', pagos: 'pagos', presupuestos: 'presupuestos', siniestros: 'siniestros' };
 
 // Si se llega desde el email de "recuperar contraseña" hay que pedir la nueva clave
@@ -95,7 +113,9 @@ const DB = {
   },
 
   async remove(col, id) {
-    const { error } = await sb.from(TABLAS[col]).delete().eq('id', id);
+    const { error } = col === 'users'
+      ? await sb.rpc('admin_borrar_usuario', { p_usuario: id })  // borra también la cuenta de ingreso
+      : await sb.from(TABLAS[col]).delete().eq('id', id);
     if (error) throw fallo(error);
     this._d[col] = this._d[col].filter(x => x.id !== id);
   },
@@ -142,8 +162,8 @@ async function perfil(id) {
 const Auth = {
   user: null,
 
-  async login(email, password) {
-    const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+  async login(usuario, password) {
+    const { data, error } = await sb.auth.signInWithPassword({ email: emailDeIngreso(usuario), password });
     if (error) throw fallo(error);
     const p = await perfil(data.user.id);
     if (!p || p.bloqueado) {
@@ -191,14 +211,19 @@ const Auth = {
     if (error) throw fallo(error);
   },
 
-  // El productor crea la cuenta del cliente. Se usa una conexión aparte para no cerrar la sesión del productor.
+  // El productor crea la cuenta del cliente: con su email o, si no tiene, con su DNI. Devuelve el id.
   async crearCliente(datos, password) {
-    const tmp = supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey,
-      { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'alta-cliente' } });
-    const { data, error } = await tmp.auth.signUp({ email: datos.email.trim(), password, options: { data: datos, emailRedirectTo: urlLogin() } });
+    const email = datos.email?.trim() ? datos.email.trim().toLowerCase() : soloDigitos(datos.dni).length >= 6 ? emailDeDni(datos.dni) : '';
+    if (!email) throw new Error(`${datos.nombre || 'El cliente'}: hace falta un email o un DNI para que pueda ingresar`);
+    const { data, error } = await sb.rpc('admin_crear_usuario', { p_email: email, p_password: password, p_datos: { ...datos, email } });
     if (error) throw fallo(error);
-    if (!data.user || (data.user.identities && !data.user.identities.length)) throw new Error('Ya existe un usuario con ese email');
-    return data.user.id;
+    return data;
+  },
+
+  // El productor le pone una contraseña nueva a un cliente
+  async cambiarPasswordDe(id, password) {
+    const { error } = await sb.rpc('admin_cambiar_password', { p_usuario: id, p_password: password });
+    if (error) throw fallo(error);
   },
 
   async enviarRecupero(email) {

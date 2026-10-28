@@ -15,7 +15,7 @@
       <div id="paso-login">
         <p class="muted" style="margin:0">Ingresá a tu cuenta para ver tus pólizas, pagos y presupuestos.</p>
         <form id="login">
-          <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+          <label class="field"><span>Email o DNI</span><input type="text" name="email" required autocomplete="username" autocapitalize="none" spellcheck="false"></label>
           <label class="field"><span>Contraseña</span><input type="password" name="password" required autocomplete="current-password"></label>
           <div class="error-msg" id="err"></div>
           <button class="btn" type="submit">Ingresar</button>
@@ -27,7 +27,7 @@
       <div id="paso-olvido" class="hidden">
         <p class="muted" style="margin:0">Ingresá tu email y te enviamos un link para elegir una contraseña nueva.</p>
         <form id="olvido">
-          <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+          <label class="field"><span>Email</span><input type="text" name="email" required autocomplete="username" autocapitalize="none"></label>
           <div class="error-msg" id="err-olvido"></div>
           <button class="btn" type="submit">Enviar link</button>
         </form>
@@ -75,6 +75,7 @@
       enviar('#login', '#err', async d => ir(await Auth.login(d.email, d.password)));
 
       enviar('#olvido', '#err-olvido', async (d, f) => {
+        if (!d.email.includes('@')) throw new Error('Si ingresás con tu DNI, pedile una contraseña nueva a tu productor por WhatsApp.');
         await Auth.enviarRecupero(d.email);
         f.reset();
         toast('Si el email está registrado, te llegará un link en unos minutos.');

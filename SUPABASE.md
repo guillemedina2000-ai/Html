@@ -19,7 +19,7 @@ Esto crea las tablas (clientes, pólizas, pagos, presupuestos, siniestros), la c
 ## 3. Configurar el ingreso por email
 
 1. Entrá a **Authentication** → **Sign In / Providers** → **Email**.
-2. Desactivá **Confirm email** y guardá. Así los clientes que da de alta el productor pueden entrar directamente con la contraseña que les pasa.
+2. En **Authentication** → **Sign In / Providers**, sección **User Signups**: desactivá **Allow new users to sign up** y **Confirm email**, y guardá. Las cuentas de los clientes las crea solamente el productor desde el panel, así nadie más puede registrarse.
 3. Entrá a **Authentication** → **URL Configuration**:
    - **Site URL**: la dirección donde va a estar publicada la página (ver paso 6), por ejemplo `https://tuusuario.github.io/Html/`.
    - **Redirect URLs**: agregá esa misma dirección terminada en `**`, por ejemplo `https://tuusuario.github.io/Html/**`.
@@ -67,12 +67,18 @@ La forma más simple es **GitHub Pages** (gratis):
 
 También se puede publicar en Netlify, Vercel o Cloudflare Pages arrastrando la carpeta, o comprar un dominio propio (por ej. `medinaseguros.com.ar`) y apuntarlo a cualquiera de ellos.
 
+## Actualizaciones
+
+Cuando se agregan funciones nuevas puede hacer falta volver a ejecutar [`supabase/schema.sql`](supabase/schema.sql) en el **SQL Editor** (paso 2). Se puede ejecutar todas las veces que haga falta: no borra datos.
+
 ## Uso diario
 
-- **Dar de alta un cliente**: Panel → Clientes → *Nuevo cliente*. Al guardar aparece un mensaje con los datos de acceso para mandárselos por WhatsApp o email.
-- **Si un cliente se olvida la contraseña**: puede tocar *Olvidé mi contraseña* al ingresar, o el productor le manda el link desde la ficha del cliente (*Enviar cambio de contraseña*).
+- **Dar de alta un cliente**: Panel → Clientes → *Nuevo cliente*. Al guardar aparece un mensaje con los datos de acceso para mandárselos por WhatsApp o email. Si el cliente no tiene email, ingresa con su **DNI**.
+- **Importar muchos clientes desde Excel**: Panel → Clientes → *📥 Importar Excel*. La página reconoce las columnas (nombre, DNI, teléfono, email, compañía, n° de póliza, patente, vigencia, etc.), muestra una vista previa y crea los clientes con sus pólizas. Al terminar se descarga una planilla con el usuario y la contraseña de cada cliente nuevo. Se puede volver a importar el mismo archivo actualizado: no duplica clientes ni pólizas.
+- **Cargar los PDF de las pólizas**: Panel → Pólizas → *📎 Cargar PDFs*. Se eligen todos juntos y cada uno se asigna solo a su póliza si el nombre del archivo tiene el n° de póliza, la patente, el DNI o el apellido del cliente. Los que no se reconocen se eligen de una lista. Los clientes los ven desde *Mis pólizas → Ver póliza*, ideal para mostrarlos en un control.
+- **Mandar el acceso o una contraseña nueva**: desde la ficha del cliente, *🔑 Enviar acceso*. Genera una contraseña nueva y arma el mensaje para WhatsApp. Los clientes con email también pueden usar *Olvidé mi contraseña* al ingresar.
 - **Deshabilitar acceso**: desde la ficha del cliente. El cliente deja de ver sus datos al instante, pero no se borra nada.
-- **Eliminar un cliente**: borra sus pólizas, pagos, presupuestos y siniestros. Si además querés borrar su usuario para siempre (por ejemplo para volver a crearlo con el mismo email), hacelo en Supabase → Authentication → Users.
+- **Eliminar un cliente**: borra su usuario y todas sus pólizas, pagos, presupuestos y siniestros.
 
 ## Cosas a tener en cuenta
 

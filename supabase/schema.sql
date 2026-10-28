@@ -257,3 +257,61 @@ create policy "archivos subir" on storage.objects for insert
   with check (bucket_id = 'archivos' and (is_admin() or ((storage.foldername(name))[1] = auth.uid()::text and is_activo())));
 create policy "archivos borrar" on storage.objects for delete
   using (bucket_id = 'archivos' and is_admin());
+
+-- ---------- Funciones del productor para administrar cuentas ----------
+-- Permiten crear clientes (también en cantidad, desde un Excel), elegirles
+-- una contraseña nueva y borrarlos por completo. Solo las puede usar el productor.
+
+create or replace function public.admin_crear_usuario(p_email text, p_password text, p_datos jsonb default '{}')
+returns uuid language plpgsql security definer set search_path = public, auth, extensions as $$
+declare
+  nuevo uuid := gen_random_uuid();
+  em text := lower(trim(p_email));
+begin
+  if not is_admin() then raise exception 'Solo el productor puede crear usuarios'; end if;
+  if em !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'Email inválido: %', p_email; end if;
+  if length(coalesce(p_password, '')) < 6 then raise exception 'La contraseña debe tener al menos 6 caracteres'; end if;
+  if exists (select 1 from auth.users where lower(email) = em) then raise exception 'Ya existe un usuario con ese email o DNI: %', em; end if;
+
+  insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+    raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+    confirmation_token, recovery_token, email_change_token_new, email_change)
+  values ('00000000-0000-0000-0000-000000000000', nuevo, 'authenticated', 'authenticated', em,
+    crypt(p_password, gen_salt('bf')), now(),
+    '{"provider": "email", "providers": ["email"]}', coalesce(p_datos, '{}'), now(), now(), '', '', '', '');
+
+  insert into auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+  values (gen_random_uuid(), nuevo, nuevo::text,
+    jsonb_build_object('sub', nuevo::text, 'email', em, 'email_verified', true), 'email', now(), now(), now());
+
+  return nuevo;
+end $$;
+
+create or replace function public.admin_cambiar_password(p_usuario uuid, p_password text)
+returns void language plpgsql security definer set search_path = public, auth, extensions as $$
+begin
+  if not is_admin() then raise exception 'Solo el productor puede cambiar contraseñas'; end if;
+  if length(coalesce(p_password, '')) < 6 then raise exception 'La contraseña debe tener al menos 6 caracteres'; end if;
+  if exists (select 1 from profiles where id = p_usuario and role = 'admin') and p_usuario <> auth.uid() then
+    raise exception 'No se puede cambiar la contraseña de otro productor';
+  end if;
+  update auth.users set encrypted_password = crypt(p_password, gen_salt('bf')), updated_at = now() where id = p_usuario;
+end $$;
+
+-- Borra la cuenta y, en cascada, todos sus datos (pólizas, pagos, presupuestos, siniestros)
+create or replace function public.admin_borrar_usuario(p_usuario uuid)
+returns void language plpgsql security definer set search_path = public, auth as $$
+begin
+  if not is_admin() then raise exception 'Solo el productor puede borrar usuarios'; end if;
+  if exists (select 1 from profiles where id = p_usuario and role = 'admin') then
+    raise exception 'No se puede borrar a un productor';
+  end if;
+  delete from auth.users where id = p_usuario;
+end $$;
+
+revoke all on function public.admin_crear_usuario(text, text, jsonb) from public, anon;
+revoke all on function public.admin_cambiar_password(uuid, text) from public, anon;
+revoke all on function public.admin_borrar_usuario(uuid) from public, anon;
+grant execute on function public.admin_crear_usuario(text, text, jsonb) to authenticated;
+grant execute on function public.admin_cambiar_password(uuid, text) to authenticated;
+grant execute on function public.admin_borrar_usuario(uuid) to authenticated;

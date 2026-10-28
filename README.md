@@ -3,8 +3,8 @@
 Sitio web para un productor de seguros con:
 
 - **Sitio público** (`index.html`): presentación, tipos de seguro, formulario para pedir presupuesto, contacto y botón de WhatsApp.
-- **Panel del productor** (`admin.html`): clientes, pólizas (con PDF), cuotas y pagos, presupuestos, siniestros, recordatorios por WhatsApp, renovaciones y copia de seguridad.
-- **Portal del cliente** (`cliente.html`): ver y descargar sus pólizas, certificado de cobertura, ver pagos e informar pagos con comprobante, pedir y aceptar presupuestos, denunciar siniestros y seguir su estado, cambiar sus datos y contraseña.
+- **Panel del productor** (`admin.html`): clientes, pólizas (con PDF), cuotas y pagos, presupuestos, siniestros, recordatorios por WhatsApp, renovaciones, importación de clientes desde Excel, carga masiva de PDFs y copia de seguridad.
+- **Portal del cliente** (`cliente.html`, se ingresa con email o DNI): ver y descargar sus pólizas, certificado de cobertura, ver pagos e informar pagos con comprobante, pedir y aceptar presupuestos, denunciar siniestros y seguir su estado, cambiar sus datos y contraseña.
 
 Los datos, usuarios y archivos se guardan en **Supabase**, así que el productor y cada cliente pueden entrar desde cualquier computadora o celular. Cada cliente ve solamente sus propios datos; esas reglas están en la base de datos (`supabase/schema.sql`), no solo en la página.
 
@@ -29,5 +29,6 @@ js/store.js           Acceso a datos, archivos y usuarios (Supabase)
 js/ui.js              Utilidades de interfaz
 js/admin.js           Lógica del panel
 js/cliente.js         Lógica del portal
+js/carga.js           Importar Excel y cargar PDFs en cantidad
 supabase/schema.sql   Tablas, reglas de seguridad y almacenamiento de archivos
 ```

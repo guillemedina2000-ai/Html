@@ -37,6 +37,22 @@ async function descargar(archivo) {
   setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
+// Abre el archivo en una pestaña nueva: en el celular se ve directo, sin descargarlo.
+// La pestaña se abre antes de esperar la descarga para que el navegador no la bloquee.
+async function verArchivo(archivo) {
+  if (!archivo) return;
+  const w = window.open('', '_blank');
+  try {
+    const datos = await Archivos.bajar(archivo);
+    const url = URL.createObjectURL(new Blob([datos], { type: archivo.tipo || datos.type || 'application/pdf' }));
+    if (w) w.location.href = url; else location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (err) {
+    if (w) w.close();
+    throw err;
+  }
+}
+
 function toast(msg, tipo = 'ok') {
   const t = document.createElement('div');
   t.className = 'toast ' + tipo;
@@ -118,6 +134,7 @@ function estadoPoliza(p) {
 const BADGES = {
   pagado: 'green', vigente: 'green', activo: 'green', deshabilitado: 'red', respondido: 'blue', aceptado: 'green', resuelto: 'green',
   pendiente: 'amber', 'por vencer': 'amber', informado: 'blue', nuevo: 'amber', 'en trámite': 'blue', denunciado: 'amber',
+  reconocido: 'green', elegido: 'green', subido: 'green', 'sin asignar': 'amber', 'subiendo…': 'blue', 'ya existe': 'gray', error: 'red',
   vencido: 'red', vencida: 'red', anulada: 'gray', cerrado: 'gray', rechazado: 'red', rechazada: 'gray',
 };
 const badge = e => `<span class="badge ${BADGES[e] || 'gray'}">${esc(e)}</span>`;

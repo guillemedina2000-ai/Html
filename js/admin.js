@@ -67,7 +67,8 @@ const vistas = {
 
   clientes() {
     render(`
-      <div class="page-head"><h1>Clientes</h1><button class="btn" data-act="nuevoCliente">+ Nuevo cliente</button></div>
+      <div class="page-head"><h1>Clientes</h1>
+        <div class="actions"><a class="btn ghost" href="#importar">📥 Importar Excel</a><button class="btn" data-act="nuevoCliente">+ Nuevo cliente</button></div></div>
       <div class="card">
         <div class="toolbar"><input type="search" id="buscar" placeholder="Buscar por nombre, DNI, email o teléfono…"></div>
         <div id="lista"></div>
@@ -75,10 +76,10 @@ const vistas = {
     const pintar = () => {
       const q = $('#buscar').value.trim().toLowerCase();
       const lista = clientes().filter(c => [c.nombre, c.dni, c.email, c.telefono].join(' ').toLowerCase().includes(q));
-      $('#lista').innerHTML = tabla(['Nombre', 'DNI', 'Teléfono', 'Email', 'Pólizas', 'Deuda vencida', 'Acceso'],
+      $('#lista').innerHTML = tabla(['Nombre', 'DNI', 'Teléfono', 'Usuario', 'Pólizas', 'Deuda vencida', 'Acceso'],
         lista.map(c => {
           const deuda = deudaVencida(c.id);
-          return [`<a href="#cliente/${c.id}"><strong>${esc(c.nombre)}</strong></a>`, esc(c.dni || '-'), esc(c.telefono || '-'), esc(c.email),
+          return [`<a href="#cliente/${c.id}"><strong>${esc(c.nombre)}</strong></a>`, esc(c.dni || '-'), esc(c.telefono || '-'), esc(usuarioVisible(c)),
             DB.where('polizas', p => p.clienteId === c.id).length, deuda ? `<span class="badge red">${money(deuda)}</span>` : '-',
             c.bloqueado ? badge('deshabilitado') : badge('activo')];
         }), q ? 'No se encontraron clientes.' : 'Todavía no cargaste clientes.');
@@ -98,15 +99,14 @@ const vistas = {
       <div class="page-head"><h1>${esc(c.nombre)}</h1>
         <div class="actions">
           ${waBoton(id, `Hola ${c.nombre}!`, 'WhatsApp')}
-          <button class="btn ghost" data-act="enviarAcceso" data-id="${id}">Enviar acceso</button>
+          <button class="btn ghost" data-act="enviarAcceso" data-id="${id}">🔑 Enviar acceso</button>
           <button class="btn ghost" data-act="editarCliente" data-id="${id}">Editar</button>
-          <button class="btn ghost" data-act="resetPassword" data-id="${id}">Enviar cambio de contraseña</button>
           <button class="btn ghost" data-act="toggleAcceso" data-id="${id}">${c.bloqueado ? 'Habilitar acceso' : 'Deshabilitar acceso'}</button>
           <button class="btn danger" data-act="eliminarCliente" data-id="${id}">Eliminar</button>
         </div></div>
       <div class="card"><dl class="dl">
         <dt>DNI / CUIT</dt><dd>${esc(c.dni || '-')}</dd>
-        <dt>Email (usuario)</dt><dd>${esc(c.email)}</dd>
+        <dt>Usuario para ingresar</dt><dd>${esc(usuarioVisible(c))}</dd>
         <dt>Teléfono</dt><dd>${esc(c.telefono || '-')}</dd>
         <dt>Dirección</dt><dd>${esc(c.direccion || '-')}</dd>
         <dt>Fecha de nacimiento</dt><dd>${fdate(c.nacimiento)}</dd>
@@ -127,7 +127,8 @@ const vistas = {
 
   polizas() {
     render(`
-      <div class="page-head"><h1>Pólizas</h1><button class="btn" data-act="nuevaPoliza">+ Nueva póliza</button></div>
+      <div class="page-head"><h1>Pólizas</h1>
+        <div class="actions"><a class="btn ghost" href="#pdfs">📎 Cargar PDFs</a><button class="btn" data-act="nuevaPoliza">+ Nueva póliza</button></div></div>
       <div class="card">
         <div class="toolbar">
           <input type="search" id="buscar" placeholder="Buscar cliente, número, bien…">
@@ -179,7 +180,7 @@ const vistas = {
       <div class="card">${tabla(['Fecha', 'Solicitante', 'Contacto', 'Ramo', 'Estado', ''], lista.map(p => [
         fdate(p.creado),
         p.clienteId ? linkCliente(p.clienteId) + ' <span class="badge blue">cliente</span>' : esc(p.nombre),
-        esc(p.clienteId ? DB.get('users', p.clienteId)?.telefono : p.telefono) + '<br><small class="muted">' + esc(p.clienteId ? DB.get('users', p.clienteId)?.email : p.email) + '</small>',
+        esc(p.clienteId ? DB.get('users', p.clienteId)?.telefono : p.telefono) + '<br><small class="muted">' + esc(p.clienteId ? usuarioVisible(DB.get('users', p.clienteId)) : p.email) + '</small>',
         esc(p.ramo), badge(p.estado),
         `<div class="actions"><button class="btn sm" data-act="responderPresupuesto" data-id="${p.id}">Ver / responder</button>
           <button class="btn sm ghost" data-act="eliminarPresupuesto" data-id="${p.id}">Eliminar</button></div>`]),
@@ -240,7 +241,7 @@ function tablaPolizas(lista, conCliente) {
     ...(conCliente ? [linkCliente(p.clienteId)] : []),
     esc(p.ramo), esc(p.compania), esc(p.numero), esc(p.bien), `${fdate(p.vigenciaDesde)} – ${fdate(p.vigenciaHasta)}`, money(p.prima), badge(estadoPoliza(p)),
     `<div class="actions">
-      ${p.archivo ? `<button class="btn sm ghost" data-act="descargarPoliza" data-id="${p.id}" title="Descargar póliza">📎 PDF</button>` : ''}
+      ${p.archivo ? `<button class="btn sm ghost" data-act="verPoliza" data-id="${p.id}" title="Ver póliza">📎 PDF</button>` : ''}
       <button class="btn sm ghost" data-act="certificado" data-id="${p.id}" title="Certificado de cobertura">📄</button>
       <button class="btn sm ghost" data-act="editarPoliza" data-id="${p.id}">Editar</button>
       <button class="btn sm ghost" data-act="renovarPoliza" data-id="${p.id}">Renovar</button>
@@ -280,8 +281,8 @@ function formCliente(c = {}, nuevo = false) {
     ${campo('Nombre y apellido / Razón social', 'nombre', { value: c.nombre, required: true, full: true })}
     ${campo('DNI / CUIT', 'dni', { value: c.dni })}
     ${campo('Fecha de nacimiento', 'nacimiento', { type: 'date', value: c.nacimiento })}
-    ${nuevo ? campo('Email (será su usuario)', 'email', { type: 'email', value: c.email, required: true })
-      : campo('Email (usuario)', 'email', { type: 'email', value: c.email, attrs: 'disabled', hint: 'El cliente lo puede cambiar desde “Mis datos”' })}
+    ${nuevo ? campo('Email', 'email', { type: 'email', value: c.email, hint: 'Si no tiene email, va a ingresar con su DNI' })
+      : campo('Usuario para ingresar', 'usuario', { value: usuarioVisible(c), attrs: 'disabled' })}
     ${campo('Teléfono / WhatsApp', 'telefono', { type: 'tel', value: c.telefono, hint: 'Con código de área, ej: 11 5555-1234' })}
     ${campo('Dirección', 'direccion', { value: c.direccion, full: true })}
     ${nuevo ? campo('Contraseña inicial', 'password', { value: Math.random().toString(36).slice(2, 10), required: true, full: true, hint: 'Pasásela al cliente. Después la puede cambiar desde su portal.' }) : ''}
@@ -310,7 +311,7 @@ function formPoliza(p = {}, clienteId = '') {
     ${campo('Vigencia hasta', 'vigenciaHasta', { type: 'date', value: p.vigenciaHasta || sumarMeses(desde, 12), required: true })}
     ${campo('Cuota mensual ($)', 'prima', { type: 'number', value: p.prima, required: true, attrs: 'min="0" step="0.01"' })}
     ${campo('Suma asegurada ($)', 'suma', { type: 'number', value: p.suma, attrs: 'min="0" step="0.01"' })}
-    ${campo(p.archivo ? `Reemplazar PDF de la póliza (actual: ${p.archivo.nombre})` : 'PDF de la póliza', 'archivo', { type: 'file', full: true, attrs: 'accept=".pdf,image/*"', hint: 'Máximo 1,5 MB. El cliente lo podrá descargar desde su portal.' })}
+    ${campo(p.archivo ? `Reemplazar PDF de la póliza (actual: ${p.archivo.nombre})` : 'PDF de la póliza', 'archivo', { type: 'file', full: true, attrs: 'accept=".pdf,image/*"', hint: 'Máximo 10 MB. El cliente lo podrá ver y descargar desde su portal.' })}
     ${nueva ? campo('Generar cuotas automáticamente', 'cuotas', { type: 'number', value: 12, full: true, attrs: 'min="0" max="24"', hint: 'Se crea una cuota por mes desde el inicio de la vigencia. Poné 0 para no generar.' }) : ''}
   </div>`;
 }
@@ -346,12 +347,12 @@ const acciones = {
   async nuevoCliente() {
     modal('Nuevo cliente', formCliente({}, true), async d => {
       const { notas, ...datos } = datosCliente(d);
-      const email = d.email.trim().toLowerCase();
-      const id = await Auth.crearCliente({ ...datos, email }, d.password);
+      const id = await Auth.crearCliente({ ...datos, email: d.email }, d.password);
       if (notas) await DB.update('users', id, { notas });
       toast('Cliente creado');
       location.hash = '#cliente/' + id;
-      mostrarAcceso({ ...datos, email }, d.password);
+      await refrescar();
+      mostrarAcceso(DB.get('users', id), d.password);
     });
   },
 
@@ -364,14 +365,14 @@ const acciones = {
     });
   },
 
-  async resetPassword(id) {
+  // Las contraseñas no se pueden ver: para mandarle el acceso se genera una nueva
+  async enviarAcceso(id) {
     const c = DB.get('users', id);
-    if (!confirmar(`¿Enviar a ${c.email} un email para que elija una contraseña nueva?`)) return;
-    await Auth.enviarRecupero(c.email);
-    toast('Email enviado a ' + c.email);
+    if (!confirmar(`Se va a generar una contraseña nueva para ${c.nombre} (si tenía una, deja de funcionar). ¿Continuar?`)) return;
+    const password = contrasenaAleatoria();
+    await Auth.cambiarPasswordDe(id, password);
+    mostrarAcceso(c, password);
   },
-
-  async enviarAcceso(id) { mostrarAcceso(DB.get('users', id)); },
 
   async toggleAcceso(id) {
     const c = DB.get('users', id);
@@ -425,6 +426,7 @@ const acciones = {
     await refrescar();
   },
 
+  verPoliza(id) { return verArchivo(DB.get('polizas', id).archivo); },
   descargarPoliza(id) { return descargar(DB.get('polizas', id).archivo); },
   certificado(id) { const p = DB.get('polizas', id); imprimirCertificado(p, DB.get('users', p.clienteId)); },
 
@@ -485,7 +487,7 @@ const acciones = {
     modal('Presupuesto de ' + (cli ? cli.nombre : p.nombre), `
       <dl class="dl">
         <dt>Fecha</dt><dd>${fdate(p.creado)}</dd>
-        <dt>Contacto</dt><dd>${esc(tel || '-')} · ${esc(cli ? cli.email : p.email)} ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</dd>
+        <dt>Contacto</dt><dd>${esc(tel || '-')} · ${esc(cli ? usuarioVisible(cli) : p.email)} ${wa ? `<a href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</dd>
         <dt>Ramo</dt><dd>${esc(p.ramo)}</dd>
         <dt>Detalle</dt><dd style="white-space:pre-wrap">${esc(p.detalle)}</dd>
         <dt>Estado</dt><dd>${badge(p.estado)}</dd>
@@ -554,16 +556,19 @@ const acciones = {
   },
 };
 
+function mensajeAcceso(c, password) {
+  return `Hola ${c.nombre}! Ya tenés acceso al portal de clientes de ${CONFIG.marca}, donde podés ver tus pólizas, controlar tus pagos y pedir presupuestos.\n\nIngresá en: ${urlPortal()}\nUsuario: ${entraConDni(c) ? c.email.replace(DOMINIO_DNI, '') : c.email}\nContraseña: ${password}\n\nDespués podés cambiar la contraseña desde "Mis datos".`;
+}
+
 function mostrarAcceso(c, password) {
-  const texto = `Hola ${c.nombre}! Ya tenés acceso al portal de clientes de ${CONFIG.marca}, donde podés ver y descargar tus pólizas, controlar tus pagos y pedir presupuestos.\n\nIngresá en: ${urlPortal()}\nUsuario: ${c.email}${password ? `\nContraseña: ${password}` : ''}`;
+  const texto = mensajeAcceso(c, password);
   const wa = linkWhatsapp(c.telefono, texto);
   modal('Datos de acceso', `
     <p>Enviale estos datos al cliente para que pueda ingresar a su portal:</p>
     <div class="reply" id="txt-acceso">${esc(texto)}</div>
-    ${password ? '' : '<p class="muted" style="font-size:14px">Por seguridad no se puede ver la contraseña. Si el cliente no la recuerda, usá “Enviar cambio de contraseña” o que toque “Olvidé mi contraseña” al ingresar.</p>'}
     <div class="actions" style="margin-top:14px">
       ${wa ? `<a class="btn wa" href="${esc(wa)}" target="_blank" rel="noopener">Enviar por WhatsApp</a>` : ''}
-      <a class="btn ghost" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Acceso al portal de clientes')}&body=${encodeURIComponent(texto)}">Enviar por email</a>
+      ${entraConDni(c) ? '' : `<a class="btn ghost" href="mailto:${esc(c.email)}?subject=${encodeURIComponent('Acceso al portal de clientes')}&body=${encodeURIComponent(texto)}">Enviar por email</a>`}
       <button type="button" class="btn ghost" id="copiar">Copiar</button>
     </div>`);
   $('#copiar').onclick = () => navigator.clipboard.writeText(texto).then(() => toast('Copiado'));
