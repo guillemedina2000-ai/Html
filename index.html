@@ -4,89 +4,204 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Seguros - Productor Asesor</title>
-  <meta name="description" content="Asesoramiento en seguros de auto, hogar, vida y comercio. Pedí tu presupuesto online.">
+  <meta name="description" content="Asesoramiento en seguros de auto, moto, hogar, vida y comercio. Pedí tu cotización online.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <div class="site-top">
+    <div class="wrap">
+      <div class="datos">
+        <span>📞 <a id="top-tel"></a></span>
+        <span>✉️ <a id="top-mail"></a></span>
+        <span>🕘 <span data-cfg="horario"></span></span>
+      </div>
+      <a href="login.html">Portal de clientes →</a>
+    </div>
+  </div>
+
   <header class="site-header">
     <div class="wrap">
-      <a class="logo" href="#" data-cfg="marca"></a>
+      <a class="logo" href="#">
+        <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 5 8v11c0 9.4 6.4 17.2 15 19 8.6-1.8 15-9.6 15-19V8L20 2Z" fill="#003781"/><path d="m13 20 5 5 9-10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><strong data-cfg="marca"></strong><small data-cfg="productor"></small></span>
+      </a>
       <nav>
-        <a href="#servicios">Seguros</a>
-        <a href="#portal">Portal de clientes</a>
-        <a href="#cotizar">Cotizar</a>
+        <a href="#seguros">Seguros</a>
+        <a href="#porque">Por qué elegirnos</a>
+        <a href="#portal">Clientes</a>
         <a href="#contacto">Contacto</a>
-        <a class="btn" href="login.html">Ingresar</a>
+        <a class="btn outline" href="login.html">Ingresar</a>
+        <a class="btn" href="#cotizar">Cotizá</a>
       </nav>
     </div>
   </header>
 
-  <section class="hero">
+  <section class="hero" data-foto="portada">
     <div class="wrap">
-      <h1>Asesoramiento en seguros, cerca tuyo.</h1>
-      <p>Comparamos entre las principales compañías para encontrar la cobertura que necesitás al mejor precio. Y desde el portal de clientes tenés tus pólizas y pagos siempre a mano.</p>
+      <div>
+        <span class="kicker">Asesoramiento personalizado</span>
+        <h1>Protegé lo que más te importa</h1>
+        <p>Comparamos entre las principales aseguradoras del país para encontrar la cobertura justa para vos, tu familia y tu negocio. Y te acompañamos cuando más lo necesitás.</p>
+      </div>
+      <div class="cotizador">
+        <h3>Cotizá tu seguro</h3>
+        <p>Elegí qué querés asegurar y te enviamos las mejores opciones.</p>
+        <div class="ramos-rapidos" id="ramos-rapidos"></div>
+        <a class="btn lg" href="#cotizar" id="btn-cotizar">Cotizar ahora</a>
+        <div class="alt">o escribinos por <a id="wa-cotizar" target="_blank" rel="noopener">WhatsApp</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="seguros">
+    <div class="wrap">
+      <div class="titulo">
+        <small>Nuestros seguros</small>
+        <h2>Coberturas para cada momento</h2>
+        <p class="lead">Trabajamos con compañías líderes para ofrecerte respaldo y el mejor precio.</p>
+      </div>
+      <div class="productos" id="productos"></div>
+    </div>
+  </section>
+
+  <section class="banda">
+    <div class="wrap">
+      <div>
+        <h2>¿Tuviste un siniestro?</h2>
+        <p>Comunicate con nosotros y te guiamos paso a paso. Si sos cliente, también podés denunciarlo desde el portal.</p>
+      </div>
       <div class="actions">
-        <a class="btn" href="#cotizar">Pedir presupuesto</a>
-        <a class="btn ghost" href="login.html">Soy cliente</a>
+        <a class="btn lg" id="wa-siniestro" target="_blank" rel="noopener">Avisar por WhatsApp</a>
+        <a class="btn lg ghost" href="login.html">Denunciar en el portal</a>
       </div>
     </div>
   </section>
 
-  <section class="section" id="servicios">
+  <section class="section alt" id="porque">
     <div class="wrap">
-      <h2>¿Qué querés asegurar?</h2>
-      <p class="lead">Trabajamos con las compañías líderes del mercado para ofrecerte la mejor opción.</p>
-      <div class="features">
-        <div class="feature"><div class="ico">🚗</div><h3>Auto y moto</h3><p>Responsabilidad civil, terceros completo, todo riesgo y granizo.</p></div>
-        <div class="feature"><div class="ico">🏠</div><h3>Hogar</h3><p>Incendio, robo, daños por agua y responsabilidad civil para tu casa o departamento.</p></div>
-        <div class="feature"><div class="ico">❤️</div><h3>Vida y accidentes</h3><p>Protegé a tu familia con seguros de vida y accidentes personales.</p></div>
-        <div class="feature"><div class="ico">🏪</div><h3>Comercio e industria</h3><p>Integral de comercio, ART, caución y coberturas a medida.</p></div>
+      <div class="titulo">
+        <small>Por qué elegirnos</small>
+        <h2>Un productor asesor de tu lado</h2>
+        <p class="lead">No te vendemos una póliza: te ayudamos a elegir bien y te acompañamos durante toda la vigencia.</p>
+      </div>
+      <div class="razones">
+        <div class="razon">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg></div>
+          <h3>Comparamos por vos</h3>
+          <p>Analizamos opciones de varias compañías y te recomendamos la que mejor te conviene.</p>
+        </div>
+        <div class="razon">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <h3>Atención personal</h3>
+          <p>Hablás siempre con una persona que conoce tu caso, no con un call center.</p>
+        </div>
+        <div class="razon">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+          <h3>Respaldo en siniestros</h3>
+          <p>Te asesoramos y hacemos el seguimiento del trámite con la aseguradora.</p>
+        </div>
+        <div class="razon">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
+          <h3>Todo online</h3>
+          <p>Tus pólizas, pagos y trámites siempre a mano desde el celular, las 24 horas.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="section alt" id="portal">
-    <div class="wrap">
-      <h2>Portal de clientes</h2>
-      <p class="lead">Si ya sos cliente, ingresá con tu usuario y gestioná todo online, las 24 horas.</p>
-      <div class="features">
-        <div class="feature"><div class="ico">📄</div><h3>Descargá tus pólizas</h3><p>Pólizas y certificados de cobertura listos para imprimir o mostrar.</p></div>
-        <div class="feature"><div class="ico">💳</div><h3>Controlá tus pagos</h3><p>Cuotas pagas, pendientes y próximos vencimientos. Informá tus pagos con el comprobante.</p></div>
-        <div class="feature"><div class="ico">📝</div><h3>Pedí presupuestos</h3><p>Solicitá cotizaciones nuevas y recibí la respuesta en el portal.</p></div>
-        <div class="feature"><div class="ico">🚨</div><h3>Denunciá siniestros</h3><p>Cargá tu siniestro y seguí el estado del trámite.</p></div>
+  <section class="section" id="portal">
+    <div class="wrap split">
+      <div class="foto" data-foto="portal"></div>
+      <div>
+        <div class="titulo" style="text-align:left;margin:0">
+          <small>Portal de clientes</small>
+          <h2>Tu seguro, siempre en tu celular</h2>
+        </div>
+        <ul class="checks">
+          <li>Mirá y descargá tu póliza al instante: ideal para mostrarla en un control.</li>
+          <li>Controlá tus cuotas pagas y pendientes, e informá tus pagos con el comprobante.</li>
+          <li>Pedí presupuestos y recibí la propuesta en el portal.</li>
+          <li>Denunciá un siniestro y seguí el estado del trámite.</li>
+        </ul>
+        <div class="actions">
+          <a class="btn lg" href="login.html">Ingresar al portal</a>
+          <a class="btn lg outline" id="wa-usuario" target="_blank" rel="noopener">Pedir mi usuario</a>
+        </div>
       </div>
-      <p style="text-align:center;margin-top:30px"><a class="btn" href="login.html">Ingresar al portal</a></p>
+    </div>
+  </section>
+
+  <section class="section alt">
+    <div class="wrap">
+      <div class="titulo">
+        <small>Compañías</small>
+        <h2>Trabajamos con aseguradoras líderes</h2>
+      </div>
+      <div class="companias" id="companias"></div>
     </div>
   </section>
 
   <section class="section" id="cotizar">
     <div class="wrap">
-      <h2>Pedí tu presupuesto</h2>
-      <p class="lead">Completá el formulario y te contactamos con las mejores opciones. Sin compromiso.</p>
-      <form class="card quote-form" id="quote">
-        <div class="form-grid" id="quote-fields"></div>
-        <div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="btn" type="submit">Enviar solicitud</button></div>
-      </form>
+      <div class="titulo">
+        <small>Cotización sin cargo</small>
+        <h2>Pedí tu presupuesto</h2>
+        <p class="lead">Completá tus datos y te contactamos con las mejores opciones. Sin compromiso.</p>
+      </div>
+      <div class="cotizar-grid">
+        <div class="foto" data-foto="cotizar">
+          <div>
+            <h3>¿Preferís hablar con nosotros?</h3>
+            <p>📞 <a id="cot-tel"></a><br>💬 <a id="cot-wa" target="_blank" rel="noopener">Escribinos por WhatsApp</a></p>
+          </div>
+        </div>
+        <form id="quote" novalidate>
+          <div class="form-grid" id="quote-fields"></div>
+          <div style="margin-top:18px"><button class="btn lg" type="submit">Enviar solicitud</button></div>
+        </form>
+      </div>
     </div>
   </section>
 
   <footer class="site-footer" id="contacto">
     <div class="wrap">
-      <div>
-        <strong data-cfg="marca" style="color:#fff;font-size:18px"></strong><br>
-        <span data-cfg="productor"></span> · <span data-cfg="matricula"></span><br>
-        <small>Superintendencia de Seguros de la Nación · <a href="https://www.argentina.gob.ar/superintendencia-de-seguros" target="_blank" rel="noopener">www.argentina.gob.ar/ssn</a> · 0800-666-8400</small>
+      <div class="cols">
+        <div>
+          <a class="logo" href="#">
+            <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 5 8v11c0 9.4 6.4 17.2 15 19 8.6-1.8 15-9.6 15-19V8L20 2Z" fill="#0091c8"/><path d="m13 20 5 5 9-10" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span><strong data-cfg="marca"></strong><small data-cfg="productor"></small></span>
+          </a>
+          <p>Asesoramiento en seguros para personas, familias y empresas.</p>
+        </div>
+        <div>
+          <h4>Contacto</h4>
+          📞 <a id="pie-tel"></a><br>
+          💬 <a id="pie-wa" target="_blank" rel="noopener">WhatsApp</a><br>
+          ✉️ <a id="pie-mail"></a><br>
+          📍 <span data-cfg="direccion"></span><br>
+          🕘 <span data-cfg="horario"></span>
+        </div>
+        <div>
+          <h4>Accesos</h4>
+          <a href="login.html">Portal de clientes</a><br>
+          <a href="#cotizar">Pedir cotización</a><br>
+          <a href="#seguros">Nuestros seguros</a>
+        </div>
       </div>
-      <div>
-        📞 <span data-cfg="telefono"></span><br>
-        ✉️ <a id="mail"></a><br>
-        📍 <span data-cfg="direccion"></span><br>
-        🕘 <span data-cfg="horario"></span>
+      <div class="ssn">
+        <span data-cfg="productor"></span> · <span data-cfg="matricula"></span><br>
+        Superintendencia de Seguros de la Nación · Órgano de control de la actividad aseguradora y reaseguradora ·
+        <a href="https://www.argentina.gob.ar/superintendencia-de-seguros" target="_blank" rel="noopener">www.argentina.gob.ar/ssn</a> · 0800-666-8400
       </div>
     </div>
   </footer>
 
-  <a class="wa-float" id="wa" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
+  <a class="wa-float" id="wa" target="_blank" rel="noopener" aria-label="WhatsApp">
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.1-1.8-.9-2-1s-.5-.1-.7.1-.8 1-1 1.2-.4.2-.7.1a8.2 8.2 0 0 1-4-3.5c-.3-.5.3-.5.9-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6a1.2 1.2 0 0 0-.8.4 3.5 3.5 0 0 0-1.1 2.6 6 6 0 0 0 1.3 3.2 13.8 13.8 0 0 0 5.3 4.7c2 .8 2.7.9 3.7.8a3.1 3.1 0 0 0 2-1.4 2.5 2.5 0 0 0 .2-1.4c-.1-.2-.3-.3-.7-.5zM12 21.8a9.8 9.8 0 0 1-5-1.4l-.4-.2-3.7 1 1-3.6-.2-.4A9.8 9.8 0 1 1 12 21.8zm8.4-18.2A11.8 11.8 0 0 0 1.8 17.8L.1 24l6.4-1.7A11.8 11.8 0 0 0 12 23.7 11.8 11.8 0 0 0 20.4 3.6z"/></svg>
+  </a>
 
   <script src="js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
@@ -96,9 +211,49 @@
     (async () => {
       document.title = `${CONFIG.marca} - ${CONFIG.productor}`;
       $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
-      $('#mail').textContent = CONFIG.email;
-      $('#mail').href = 'mailto:' + CONFIG.email;
-      $('#wa').href = linkWhatsapp(CONFIG.whatsapp, 'Hola! Quería hacer una consulta sobre seguros.');
+      $$('[data-foto]').forEach(el => { el.style.backgroundImage = `url("${foto(el.dataset.foto, el.classList.contains('hero') ? 1920 : 1000)}")`; });
+
+      const tel = 'tel:+' + CONFIG.whatsapp;
+      const wa = texto => linkWhatsapp(CONFIG.whatsapp, texto);
+      ['#top-tel', '#cot-tel', '#pie-tel'].forEach(id => { $(id).textContent = CONFIG.telefono; $(id).href = tel; });
+      ['#top-mail', '#pie-mail'].forEach(id => { $(id).textContent = CONFIG.email; $(id).href = 'mailto:' + CONFIG.email; });
+      $('#wa').href = $('#pie-wa').href = $('#cot-wa').href = wa('Hola! Quería hacer una consulta sobre seguros.');
+      $('#wa-siniestro').href = wa('Hola! Tuve un siniestro y necesito ayuda.');
+      $('#wa-usuario').href = wa('Hola! Soy cliente y quiero mi usuario para el portal.');
+
+      const PRODUCTOS = [
+        { ramo: 'Auto', ico: '🚗', titulo: 'Autos', foto: 'auto', texto: 'Responsabilidad civil, terceros completo, todo riesgo, granizo y asistencia mecánica.' },
+        { ramo: 'Moto', ico: '🏍️', titulo: 'Motos', foto: 'moto', texto: 'Coberturas para motos y ciclomotores, con robo y asistencia.' },
+        { ramo: 'Hogar', ico: '🏠', titulo: 'Hogar', foto: 'hogar', texto: 'Incendio, robo, daños por agua, cristales y responsabilidad civil para tu casa.' },
+        { ramo: 'Vida', ico: '❤️', titulo: 'Vida y accidentes', foto: 'vida', texto: 'Respaldo económico para tu familia con seguros de vida y accidentes personales.' },
+        { ramo: 'Comercio', ico: '🏪', titulo: 'Comercio', foto: 'comercio', texto: 'Integral de comercio, responsabilidad civil y coberturas a medida de tu actividad.' },
+        { ramo: 'ART', ico: '👷', titulo: 'ART y caución', foto: 'art', texto: 'Riesgos del trabajo para tu personal y seguros de caución para alquileres y obras.' },
+      ];
+      $('#productos').innerHTML = PRODUCTOS.map(p => `
+        <article class="producto">
+          <div class="foto" style="background-image:url('${foto(p.foto, 800)}')"></div>
+          <div class="cuerpo">
+            <h3>${p.ico} ${esc(p.titulo)}</h3>
+            <p>${esc(p.texto)}</p>
+            <a href="#cotizar" data-ramo="${esc(p.ramo)}">Cotizar ${esc(p.titulo.toLowerCase())} →</a>
+          </div>
+        </article>`).join('');
+
+      let ramoElegido = 'Auto';
+      const elegirRamo = r => {
+        ramoElegido = r;
+        $$('#ramos-rapidos button').forEach(b => b.classList.toggle('on', b.dataset.ramo === r));
+        $('#wa-cotizar').href = wa(`Hola! Quiero cotizar un seguro de ${r}.`);
+        const sel = $('#quote [name=ramo]');
+        if (sel) sel.value = r;
+      };
+      $('#ramos-rapidos').innerHTML = [['Auto', '🚗'], ['Moto', '🏍️'], ['Hogar', '🏠'], ['Vida', '❤️'], ['Comercio', '🏪'], ['Otro', '➕']]
+        .map(([r, i]) => `<button type="button" data-ramo="${r}"><span>${i}</span>${r}</button>`).join('');
+      $('#ramos-rapidos').addEventListener('click', e => { const b = e.target.closest('button'); if (b) elegirRamo(b.dataset.ramo); });
+      document.addEventListener('click', e => { const a = e.target.closest('a[data-ramo]'); if (a) elegirRamo(a.dataset.ramo); });
+      $('#btn-cotizar').addEventListener('click', () => setTimeout(() => $('#quote [name=nombre]').focus({ preventScroll: true }), 400));
+
+      $('#companias').innerHTML = CONFIG.companias.filter(c => c !== 'Otra').map(c => `<span>${esc(c)}</span>`).join('');
 
       $('#quote-fields').innerHTML =
         campo('Nombre y apellido', 'nombre', { required: true }) +
@@ -107,6 +262,7 @@
         campo('¿Qué querés asegurar?', 'ramo', { options: CONFIG.ramos }) +
         campo('Detalle', 'detalle', { type: 'textarea', full: true, required: true,
           attrs: 'placeholder="Ej: auto marca, modelo, año y localidad / tipo de vivienda y metros / etc."' });
+      elegirRamo('Auto');
 
       $('#quote').addEventListener('submit', async e => {
         e.preventDefault();
@@ -119,6 +275,7 @@
           if (!CONFIGURADO) throw new Error('El formulario todavía no está conectado. Escribinos por WhatsApp.');
           await DB.pedirPresupuestoPublico(d);
           f.reset();
+          elegirRamo(ramoElegido);
           toast('¡Gracias! Recibimos tu solicitud y te vamos a contactar a la brevedad.');
         } catch (err) {
           toast(err.message, 'error');

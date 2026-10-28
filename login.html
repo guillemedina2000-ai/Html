@@ -4,10 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ingresar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800&display=swap">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div class="auth-page">
+    <div class="auth-photo" data-foto="ingreso">
+      <div>
+        <h2>Tu seguro, siempre a mano</h2>
+        <p>Mirá tus pólizas, controlá tus pagos y hacé tus trámites desde cualquier lugar.</p>
+      </div>
+    </div>
+    <div class="auth-side">
     <div class="auth-card">
       <a href="index.html" style="text-decoration:none;font-size:14px">← Volver al sitio</a>
       <h1 style="margin-top:14px" data-cfg="marca"></h1>
@@ -44,6 +54,7 @@
         </form>
       </div>
     </div>
+    </div>
   </div>
   <script src="js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
@@ -53,6 +64,7 @@
     (async () => {
       if (!CONFIGURADO) return pantallaSinConfigurar();
       $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
+      $$('[data-foto]').forEach(el => { el.style.backgroundImage = `url("${foto(el.dataset.foto, 1200)}")`; });
       document.title = 'Ingresar - ' + CONFIG.marca;
       $('#wa').href = linkWhatsapp(CONFIG.whatsapp, 'Hola! Necesito un usuario para el portal de clientes.');
 
