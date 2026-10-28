@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel del productor</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="topbar"><button onclick="document.body.classList.toggle('menu-open')" aria-label="Menú">☰</button><strong data-cfg="marca"></strong></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo" data-cfg="marca"></div>
+      <div class="sub">Panel del productor</div>
+      <nav class="nav">
+        <a href="#inicio">🏠 Inicio</a>
+        <a href="#clientes">👥 Clientes</a>
+        <a href="#polizas">📄 Pólizas</a>
+        <a href="#pagos">💳 Pagos <span class="count hidden" id="c-pagos"></span></a>
+        <a href="#presupuestos">📝 Presupuestos <span class="count hidden" id="c-presupuestos"></span></a>
+        <a href="#siniestros">🚨 Siniestros <span class="count hidden" id="c-siniestros"></span></a>
+        <a href="#ajustes">⚙️ Ajustes</a>
+      </nav>
+      <div class="user"><div id="user-name"></div><button onclick="Auth.logout()">Cerrar sesión</button></div>
+    </aside>
+    <main class="main" id="view"></main>
+  </div>
+  <script src="js/config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

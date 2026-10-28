@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="auth-page">
+    <div class="auth-card">
+      <a href="index.html" style="text-decoration:none;font-size:14px">← Volver al sitio</a>
+      <h1 style="margin-top:14px" data-cfg="marca"></h1>
+      <p class="muted" style="margin:0">Ingresá a tu cuenta para ver tus pólizas, pagos y presupuestos.</p>
+      <form id="login">
+        <label class="field"><span>Email</span><input type="email" name="email" required autocomplete="username"></label>
+        <label class="field"><span>Contraseña</span><input type="password" name="password" required autocomplete="current-password"></label>
+        <div class="error-msg" id="err"></div>
+        <button class="btn" type="submit">Ingresar</button>
+      </form>
+      <p class="muted" style="font-size:14px">¿No tenés usuario u olvidaste tu contraseña? Pedíselo a tu productor por <a id="wa" target="_blank" rel="noopener">WhatsApp</a>.</p>
+      <div class="demo"><strong>Usuarios de prueba</strong><br>
+        Productor: admin@demo.com / admin123<br>
+        Cliente: cliente@demo.com / cliente123</div>
+    </div>
+  </div>
+  <script src="js/config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    (async () => {
+      await DB.init();
+      $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
+      document.title = 'Ingresar - ' + CONFIG.marca;
+      $('#wa').href = linkWhatsapp(CONFIG.whatsapp, 'Hola! Necesito un usuario para el portal de clientes.');
+      const ir = u => { location.href = u.role === 'admin' ? 'admin.html' : 'cliente.html'; };
+      const actual = Auth.current();
+      if (actual) return ir(actual);
+      $('#login').addEventListener('submit', async e => {
+        e.preventDefault();
+        const d = Object.fromEntries(new FormData(e.target));
+        try { ir(await Auth.login(d.email, d.password)); }
+        catch (err) { $('#err').textContent = err.message; }
+      });
+    })();
+  </script>
+</body>
+</html>

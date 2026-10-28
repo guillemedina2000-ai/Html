@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seguros - Productor Asesor</title>
+  <meta name="description" content="Asesoramiento en seguros de auto, hogar, vida y comercio. Pedí tu presupuesto online.">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="logo" href="#" data-cfg="marca"></a>
+      <nav>
+        <a href="#servicios">Seguros</a>
+        <a href="#portal">Portal de clientes</a>
+        <a href="#cotizar">Cotizar</a>
+        <a href="#contacto">Contacto</a>
+        <a class="btn" href="login.html">Ingresar</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="wrap">
+      <h1>Asesoramiento en seguros, cerca tuyo.</h1>
+      <p>Comparamos entre las principales compañías para encontrar la cobertura que necesitás al mejor precio. Y desde el portal de clientes tenés tus pólizas y pagos siempre a mano.</p>
+      <div class="actions">
+        <a class="btn" href="#cotizar">Pedir presupuesto</a>
+        <a class="btn ghost" href="login.html">Soy cliente</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="servicios">
+    <div class="wrap">
+      <h2>¿Qué querés asegurar?</h2>
+      <p class="lead">Trabajamos con las compañías líderes del mercado para ofrecerte la mejor opción.</p>
+      <div class="features">
+        <div class="feature"><div class="ico">🚗</div><h3>Auto y moto</h3><p>Responsabilidad civil, terceros completo, todo riesgo y granizo.</p></div>
+        <div class="feature"><div class="ico">🏠</div><h3>Hogar</h3><p>Incendio, robo, daños por agua y responsabilidad civil para tu casa o departamento.</p></div>
+        <div class="feature"><div class="ico">❤️</div><h3>Vida y accidentes</h3><p>Protegé a tu familia con seguros de vida y accidentes personales.</p></div>
+        <div class="feature"><div class="ico">🏪</div><h3>Comercio e industria</h3><p>Integral de comercio, ART, caución y coberturas a medida.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section alt" id="portal">
+    <div class="wrap">
+      <h2>Portal de clientes</h2>
+      <p class="lead">Si ya sos cliente, ingresá con tu usuario y gestioná todo online, las 24 horas.</p>
+      <div class="features">
+        <div class="feature"><div class="ico">📄</div><h3>Descargá tus pólizas</h3><p>Pólizas y certificados de cobertura listos para imprimir o mostrar.</p></div>
+        <div class="feature"><div class="ico">💳</div><h3>Controlá tus pagos</h3><p>Cuotas pagas, pendientes y próximos vencimientos. Informá tus pagos con el comprobante.</p></div>
+        <div class="feature"><div class="ico">📝</div><h3>Pedí presupuestos</h3><p>Solicitá cotizaciones nuevas y recibí la respuesta en el portal.</p></div>
+        <div class="feature"><div class="ico">🚨</div><h3>Denunciá siniestros</h3><p>Cargá tu siniestro y seguí el estado del trámite.</p></div>
+      </div>
+      <p style="text-align:center;margin-top:30px"><a class="btn" href="login.html">Ingresar al portal</a></p>
+    </div>
+  </section>
+
+  <section class="section" id="cotizar">
+    <div class="wrap">
+      <h2>Pedí tu presupuesto</h2>
+      <p class="lead">Completá el formulario y te contactamos con las mejores opciones. Sin compromiso.</p>
+      <form class="card quote-form" id="quote">
+        <div class="form-grid" id="quote-fields"></div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end"><button class="btn" type="submit">Enviar solicitud</button></div>
+      </form>
+    </div>
+  </section>
+
+  <footer class="site-footer" id="contacto">
+    <div class="wrap">
+      <div>
+        <strong data-cfg="marca" style="color:#fff;font-size:18px"></strong><br>
+        <span data-cfg="productor"></span> · <span data-cfg="matricula"></span><br>
+        <small>Superintendencia de Seguros de la Nación · <a href="https://www.argentina.gob.ar/superintendencia-de-seguros" target="_blank" rel="noopener">www.argentina.gob.ar/ssn</a> · 0800-666-8400</small>
+      </div>
+      <div>
+        📞 <span data-cfg="telefono"></span><br>
+        ✉️ <a id="mail"></a><br>
+        📍 <span data-cfg="direccion"></span><br>
+        🕘 <span data-cfg="horario"></span>
+      </div>
+    </div>
+  </footer>
+
+  <a class="wa-float" id="wa" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a>
+
+  <script src="js/config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    (async () => {
+      await DB.init();
+      document.title = `${CONFIG.marca} - ${CONFIG.productor}`;
+      $$('[data-cfg]').forEach(el => { el.textContent = CONFIG[el.dataset.cfg]; });
+      $('#mail').textContent = CONFIG.email;
+      $('#mail').href = 'mailto:' + CONFIG.email;
+      $('#wa').href = linkWhatsapp(CONFIG.whatsapp, 'Hola! Quería hacer una consulta sobre seguros.');
+
+      $('#quote-fields').innerHTML =
+        campo('Nombre y apellido', 'nombre', { required: true }) +
+        campo('Teléfono', 'telefono', { type: 'tel', required: true }) +
+        campo('Email', 'email', { type: 'email', required: true }) +
+        campo('¿Qué querés asegurar?', 'ramo', { options: CONFIG.ramos }) +
+        campo('Detalle', 'detalle', { type: 'textarea', full: true, required: true,
+          attrs: 'placeholder="Ej: auto marca, modelo, año y localidad / tipo de vivienda y metros / etc."' });
+
+      $('#quote').addEventListener('submit', e => {
+        e.preventDefault();
+        const f = e.target;
+        if (!f.reportValidity()) return;
+        const d = Object.fromEntries(new FormData(f));
+        DB.insert('presupuestos', { ...d, clienteId: null, estado: 'nuevo' });
+        f.reset();
+        toast('¡Gracias! Recibimos tu solicitud y te vamos a contactar a la brevedad.');
+      });
+    })();
+  </script>
+</body>
+</html>

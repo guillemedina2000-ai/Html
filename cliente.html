@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi portal de seguros</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="topbar"><button onclick="document.body.classList.toggle('menu-open')" aria-label="Menú">☰</button><strong data-cfg="marca"></strong></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo" data-cfg="marca"></div>
+      <div class="sub">Portal de clientes</div>
+      <nav class="nav">
+        <a href="#inicio">🏠 Inicio</a>
+        <a href="#polizas">📄 Mis pólizas</a>
+        <a href="#pagos">💳 Mis pagos</a>
+        <a href="#presupuestos">📝 Presupuestos</a>
+        <a href="#siniestros">🚨 Siniestros</a>
+        <a href="#perfil">👤 Mis datos</a>
+      </nav>
+      <div class="user"><div id="user-name"></div><button onclick="Auth.logout()">Cerrar sesión</button></div>
+    </aside>
+    <main class="main" id="view"></main>
+  </div>
+  <script src="js/config.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/cliente.js"></script>
+</body>
+</html>
